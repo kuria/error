@@ -11,7 +11,7 @@ class CliExceptionRenderer implements ExceptionRendererInterface
 {
     public function render($debug, \Exception $exception, $outputBuffer = null)
     {
-        fwrite(STDERR, 'An error has occured');
+        fwrite(STDERR, 'An error has occurred');
 
         if ($debug) {
             fwrite(STDERR, "\n\n");

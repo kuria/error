@@ -116,9 +116,9 @@ class ErrorHandler extends ExternalObservable
     }
 
     /**
-     * Set emergency handler
+     * Set the emergency handler
      *
-     * @param callable $emergencyHandler
+     * @param callable $emergencyHandler callback(Exception): void
      * @return static
      */
     public function setEmergencyHandler($emergencyHandler)
