@@ -2,34 +2,40 @@
 
 namespace Kuria\Error;
 
-use Kuria\Event\ExternalObservable;
-use Kuria\Event\Observable;
+use Kuria\Error\Screen\CliErrorScreen;
+use Kuria\Error\Screen\WebErrorScreen;
+use Kuria\Error\Util\Debug;
+use Kuria\Event\EventEmitter;
 
 /**
  * Error handler
  *
+ * @emits error(object $exception, bool $debug, bool &suppressed)
+ * @emits fatal(object $exception, bool $debug, FatalErrorHandlerInterface &$handler)
+ * @emits emerg(object $exception, bool $debug)
+ * 
  * @author ShiraNai7 <shira.cz>
  */
-class ErrorHandler extends ExternalObservable
+class ErrorHandler extends EventEmitter
 {
     /** @var bool */
     protected $debug;
     /** @var string|null */
     protected $cwd;
-    /** @var callable|null */
-    protected $emergencyHandler;
-
+    /** @var FatalErrorHandlerInterface|null */
+    protected $fatalHandler;
     /** @var bool */
-    protected $handlingError = false;
-    /** @var bool */
-    protected $handlingException = false;
-    /** @var \ErrorException|null */
-    protected $currentException;
+    protected $cleanBuffers = true;
+    /** @var object|null */
+    protected $currentError;
     /** @var array|null */
     protected $lastError;
-
     /** @var bool */
     protected $registered = false;
+    /** @var string|null */
+    protected $previousDisplayErrorsSetting;
+    /** @var bool */
+    protected $shutdownHandlerRegistered = false;
 
     /**
      * @param bool        $debug debug mode 1/0
@@ -40,19 +46,14 @@ class ErrorHandler extends ExternalObservable
         $this->debug = $debug;
         $this->cwd = $cwd ?: getcwd();
 
-        // make sure the certain classes are loaded
-        // (autoloading may be unavailable during compile-time errors)
-        if (!class_exists('Kuria\Error\DebugUtils')) {
-            require __DIR__ . '/DebugUtils.php';
+        // make sure the some classes are loaded as autoloading may
+        // be unavailable during compile-time errors, {@see onError()}
+        if (!class_exists('Kuria\Error\Util\Debug')) {
+            require __DIR__ . '/Util/Debug.php';
         }
-        if (!class_exists('Kuria\Error\ErrorHandlerEvent')) {
-            require __DIR__ . '/ErrorHandlerEvent.php';
+        if (!class_exists('Kuria\Error\ContextualErrorException')) {
+            require __DIR__ . '/ContextualErrorException.php';
         }
-    }
-
-    protected function handleNullObservable()
-    {
-        $this->observable = new Observable();
     }
 
     /**
@@ -63,9 +64,16 @@ class ErrorHandler extends ExternalObservable
         if (!$this->registered) {
             set_error_handler(array($this, 'onError'));
             set_exception_handler(array($this, 'onException'));
-            register_shutdown_function(array($this, 'onShutdown'));
 
+            $this->previousDisplayErrorsSetting = ini_get('display_errors');
+            ini_set('display_errors', '0');
+            
             $this->registered = true;
+
+            if (!$this->shutdownHandlerRegistered) {
+                register_shutdown_function(array($this, 'onShutdown'));
+                $this->shutdownHandlerRegistered = true;
+            }
 
             // store last known error
             // this prevents a "fake" fatal error on shutdown
@@ -81,14 +89,14 @@ class ErrorHandler extends ExternalObservable
         if ($this->registered) {
             restore_error_handler();
             restore_exception_handler();
+            ini_set('display_errors', $this->previousDisplayErrorsSetting);
 
+            $this->previousDisplayErrorsSetting = null;
             $this->registered = false;
         }
     }
 
     /**
-     * Set debug mode
-     *
      * @param bool $debug
      * @return static
      */
@@ -100,8 +108,6 @@ class ErrorHandler extends ExternalObservable
     }
 
     /**
-     * Set CWD
-     *
      * The current working directory is stored for later use.
      * Some web servers may change the CWD inside shutdown functions.
      *
@@ -116,58 +122,95 @@ class ErrorHandler extends ExternalObservable
     }
 
     /**
-     * Set the emergency handler
+     * Get the fatal handler
      *
-     * @param callable $emergencyHandler callback(Exception): void
+     * @return FatalErrorHandlerInterface
+     */
+    public function getFatalHandler()
+    {
+        if (null === $this->fatalHandler) {
+            $this->fatalHandler = $this->getDefaultFatalHandler();
+        }
+
+        return $this->fatalHandler;
+    }
+
+    /**
+     * @param FatalErrorHandlerInterface|null $fatalHandler
      * @return static
      */
-    public function setEmergencyHandler($emergencyHandler)
+    public function setFatalHandler(FatalErrorHandlerInterface $fatalHandler = null)
     {
-        $this->emergencyHandler = $emergencyHandler;
+        $this->fatalHandler = $fatalHandler;
 
         return $this;
     }
 
     /**
-     * Handle PHP error
+     * Set whether output buffers should be cleaned before
+     * handling the fatal error handler is called.
+     *
+     * @param bool $cleanBuffers
+     * @return static
+     */
+    public function setCleanBuffers($cleanBuffers)
+    {
+        $this->cleanBuffers = $cleanBuffers;
+
+        return $this;
+    }
+
+    /**
+     * Handle a PHP error
      *
      * @param int         $code    error code
      * @param string      $message message
      * @param string|null $file    file name
      * @param int|null    $line    line number
-     * @throws \ErrorException unless suppressed
+     * @param array       $context variable context
      * @return bool
      */
-    public function onError($code, $message, $file = null, $line = null)
+    public function onError($code, $message, $file = null, $line = null, array $context = null)
     {
-        $this->handlingError = true;
         $this->lastError = error_get_last();
-        $this->currentException = new \ErrorException($message, 0, $code, $file, $line);
+
+        $this->currentError = null !== $context
+            ? new ContextualErrorException($message, 0, $code, $file, $line, null, $context)
+            : new \ErrorException($message, 0, $code, $file, $line)
+        ;
         
-        $supressed = 0 === ($code & error_reporting());
+        $suppressed = 0 === ($code & error_reporting());
 
-        // handle the error
-        if (null !== $this->observable) {
-            // notify observers
-            try {
-                $event = $this->observable->notifyObservers(
-                    new ErrorHandlerEvent($this->debug, false, $supressed, $this->currentException)
-                );
-
-                if (null !== ($eventDecision = $event->getRuntimeExceptionDecision())) {
-                    $supressed = !$eventDecision;
+        if (isset($this->listeners['error'])) {
+            // make sure autoloading is active before emitting an event
+            // (autoloading is inactive in some PHP versions during compile-time errors)
+            // (the bug appears to have been fixed in PHP 5.4.21+, 5.5.5+ and 5.6.0+)
+            // https://bugs.php.net/42098
+            if (
+                PHP_MAJOR_VERSION > 5 // PHP 7+
+                || PHP_MINOR_VERSION >= 6 // PHP 5.6+
+                || PHP_MINOR_VERSION === 5 && PHP_RELEASE_VERSION >= 5 // PHP 5.5.5+
+                || PHP_MINOR_VERSION === 4 && PHP_RELEASE_VERSION >= 21 // PHP 5.4.21+
+                || Debug::isAutoloadingActive()
+            ) {
+                $e = null;
+                try {
+                    $this->emitArray('error', array($this->currentError, $this->debug, &$suppressed));
+                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                 }
-            } catch (\Exception $eventException) {
-                $this->currentException = DebugUtils::joinExceptionChains($this->currentException, $eventException);
-                $supressed = false;
+                if (null !== $e) {
+                    $this->currentError = Debug::joinExceptionChains($this->currentError, $e);
+                    $suppressed = false;
+                }
             }
         }
 
-        $this->handlingError = false;
+        if (!$suppressed) {
+            $error = $this->currentError;
+            $this->currentError = null;
 
-        // throw or suppress
-        if (!$supressed) {
-            throw $this->currentException;
+            throw $error;
         } else {
             return true;
         }
@@ -183,14 +226,9 @@ class ErrorHandler extends ExternalObservable
             && null !== ($error = error_get_last())
             && $error !== $this->lastError
         ) {
-            $previous = null;
-
-            // check current state
-            if ($this->handlingError && null !== $this->currentException) {
-                // the fatal error has happened during onError()
-                // connect the original exception
-                $previous = $this->currentException;
-            }
+            // the fatal error could have happened during onError()
+            // use the current error if it is not NULL
+            $previous = $this->currentError;
 
             // handle the error
             $this->onException(new \ErrorException(
@@ -207,116 +245,81 @@ class ErrorHandler extends ExternalObservable
     /**
      * Handle an uncaught exception
      *
-     * @param \Exception $exception
+     * @param object $exception
      */
-    public function onException(\Exception $exception)
+    public function onException($exception)
     {
-        if ($this->handlingException) {
-            return;
-        }
-        $this->handlingException = true;
-
+        $that = $this;
+        $cwd = $this->cwd;
+        $debug = $this->debug;
+        
+        $e = null;
         try {
             // fix working directory
-            if (null !== $this->cwd) {
-                chdir($this->cwd);
+            if (null !== $cwd) {
+                chdir($cwd);
             }
 
-            // create the renderer
-            $renderer = $this->createRenderer();
-
-            // handle exception
+            // handle the exception
+            $fatalHandler = $that->getFatalHandler();
+            
+            $e2 = null;
             try {
-                if (null !== $this->observable) {
-                    // notify observers
-                    $suppressed = $exception instanceof \ErrorException
-                        && 0 === ($exception->getSeverity() & error_reporting())
-                    ;
-
-                    $event = $this->observable->notifyObservers(
-                        new ErrorHandlerEvent($this->debug, true, $suppressed, $exception, $renderer)
-                    );
-
-                    if ($event->isRendererEnabled()) {
-                        $renderer = $event->getRenderer();
-                    } else {
-                        $renderer = null;
-                    }
-                }
-            } catch (\Exception $observerException) {
-                // something went wrong while notifying the observers
-                $exception = DebugUtils::joinExceptionChains($exception, $observerException);
+                $this->emitArray('fatal', array($exception, $debug, &$fatalHandler));
+            } catch (\Exception $e2) {
+            } catch (\Throwable $e2) {
+            }
+            if (null !== $e2) {
+                $exception = Debug::joinExceptionChains($exception, $e2);
             }
 
-            // render the error
-            if (null !== $renderer) {
-                $this->renderException($renderer, $exception);
+            if (null !== $fatalHandler) {
+                $that->handleFatal($fatalHandler, $exception);
             }
-        } catch (\Exception $handlerException) {
-            // something went terribly wrong
-            $this->handleEmergency(DebugUtils::joinExceptionChains($exception, $handlerException));
+        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
+        if (null !== $e) {
+            $exception = Debug::joinExceptionChains($exception, $e);
 
-        $this->handlingException = false;
-    }
-
-    /**
-     * Handle emergency
-     *
-     * @param \Exception $exception
-     */
-    protected function handleEmergency(\Exception $exception)
-    {
-        if (null !== $this->emergencyHandler) {
-            call_user_func($this->emergencyHandler, $exception);
+            if ($this->hasListener('emerg')) {
+                $this->emit('emerg', $exception, $this->debug);
+            } elseif ($debug) {
+                // debug mode is on and there is no emergency listener
+                // just print the exception in this case (prevents white screen)
+                echo $exception;
+            }
         }
     }
 
     /**
-     * Render exception
+     * Handle a fatal condition
      *
-     * @param ExceptionRendererInterface $renderer
-     * @param \Exception                 $exception
+     * @param FatalErrorHandlerInterface $fatalHandler
+     * @param object                     $exception
      */
-    protected function renderException(ExceptionRendererInterface $renderer, \Exception $exception)
+    public function handleFatal(FatalErrorHandlerInterface $fatalHandler, $exception)
     {
-        // prepare
-        $isCli = $this->isCli();
-        if (!$isCli) {
-            DebugUtils::replaceHeaders(array('HTTP/1.1 500 Internal Server Error'));
+        // replace headers
+        if (!$this->isCli()) {
+            Debug::replaceHeaders(array('HTTP/1.1 500 Internal Server Error'));
         }
-        $outputBuffer = DebugUtils::cleanBuffers(true);
+        
+        // clean output buffers
+        $outputBuffer = $this->cleanBuffers ? Debug::cleanBuffers(null, true, true) : null;
 
-        // render
-        $renderer->render($this->debug, $exception, $outputBuffer);
+        // handle
+        $fatalHandler->handle($exception, $this->debug, $outputBuffer);
     }
 
     /**
-     * Create instance of error renderer
+     * Get the default fatal handler
      *
-     * @return ExceptionRendererInterface
+     * @return FatalErrorHandlerInterface
      */
-    protected function createRenderer()
+    protected function getDefaultFatalHandler()
     {
-        $isCli = $this->isCli();
-
-        // load classes manually if autoloading is unavailable
-        // (this might happen during compile-time errors)
-        if (!interface_exists('Kuria\Error\ExceptionRendererInterface')) {
-            require __DIR__ . '/ExceptionRendererInterface.php';
-        }
-        if ($isCli) {
-            if (!class_exists('Kuria\Error\CliExceptionRenderer')) {
-                require __DIR__ . '/CliExceptionRenderer.php';
-            }
-        } elseif (!class_exists('Kuria\Error\WebExceptionRenderer')) {
-            require __DIR__ . '/WebExceptionRenderer.php';
-        }
-
-        return $isCli
-            ? new CliExceptionRenderer()
-            : new WebExceptionRenderer()
-        ;
+        return $this->isCli() ? new CliErrorScreen() : new WebErrorScreen();
     }
 
     /**
@@ -336,9 +339,10 @@ class ErrorHandler extends ExternalObservable
      */
     protected function isActive()
     {
-        if ($this->handlingError) {
+        if (null !== $this->currentError) {
             return true;
         } else {
+            // ugly, but there is no get_error_handler()..
             $currentErrorHandler = set_error_handler(function () {}, 0);
             restore_error_handler();
 

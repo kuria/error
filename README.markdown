@@ -1,50 +1,63 @@
-PHP error handler
-=================
+Error handler
+=============
 
-Makes PHP errors suck less.
-
-## Features
-
-- handles errros
-    - fatal errors
-    - uncaught exceptions
-    - throws PHP errors as `ErrorException`s
-    - respects current `error_reporting` setting
-    - handles several "gotcha" cases
-- configuration
-    - debug mode on / off
-         - should be enabled during development
-         - should be disabled in production
-- error screens
-    - renders error messages
-    - works both in web and CLI environments (e.g. a terminal)
-    - web renderer
-        - in debug mode: messages, files, stack traces, argument lists, code preview, output buffer
-        - non-debug mode: generic message
-        - can be manipulated through events
-            - adding custom html, css and js
-            - changing non-debug mode title and message
-    - CLI renderer
-        - in debug mode: messages, files, stack traces
-        - non-debug mode: generic message
-        - writes to `STDERR`
-- event system
-    - events fire for both runtime and fatal erros
-    - events can alter behavior of the error handler
-    - ideal to hook your logic (like logging, see examples)
-    - additional errors from the observers do not break the error handler nor hide errors
+Makes handling and debugging PHP errors suck less.
 
 
-## Requirements
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Usage example](#usage)
+- [Event system](#event-system)
+    - [Error handler events](#error-handler-events)
+    - [Web error screen events](#web-error-screen-events)
+    - [CLI error screen events](#cli-error-screen-events)
+- [Event listener examples](#listener-examples)
+    - [Logging](#listener-logging)
+    - [Disabling the @ operator](#listener-disable-shutup)
+    - [Altering the error screens](#listener-custom-content)
+
+
+## <a name="features"></a> Features
+
+- debug and non-debug mode
+- converts PHP errors (warnings, notices, etc) into exceptions
+    - respects the global `error_reporting` setting
+- handles uncaught exceptions and fatal errors (including parse errors)
+- CLI error screen (writes errors to STDERR)
+- web error screen (renders errors for web browsers)
+    - non-debug mode:<br>
+      [![Web error screen in non-debug mode](http://static.shira.cz/kuria/error/v0.2.x/non-debug-thumb.gif)](http://static.shira.cz/kuria/error/v0.2.x/non-debug.png)
+        - simple error message
+        - does not disclose any internal information
+        - does not use any variation of the word "oops"
+    - debug mode:<br>
+      [![Web error screen in debug mode](http://static.shira.cz/kuria/error/v0.2.x/debug-thumb.gif)](http://static.shira.cz/kuria/error/v0.2.x/debug.png)
+        - file paths and line numbers
+        - highlighted code previews
+        - stack traces
+        - argument lists
+        - variable contexts
+        - output buffer (can be shown as HTML too)
+        - plaintext trace (for copy-paste)
+- event system that can be utilised to:
+    - implement logging
+    - suppress or force errors conditionally
+    - change or add content to the error screens
+
+
+## <a name="requirements"></a> Requirements
 
 - PHP 5.3 or newer
 
 
-## Usage example
+## <a name="usage"></a> Usage example
 
     use Kuria\Error\ErrorHandler;
 
-    $debug = true; // true in development, false in production
+    $debug = true; // true during development, false in production
+    error_reporting(E_ALL | E_STRICT); // configure the error reporting
 
     $errorHandler = new ErrorHandler($debug);
     $errorHandler->register();
@@ -53,166 +66,212 @@ Makes PHP errors suck less.
     echo $invalidVariable;
 
 
-## Event system
+## <a name="event-system"></a> Event system
 
-The error handler fires events when errors happen. This is implemented using
-the [kuria/event](https://github.com/kuria/event) library.
-
-The `ErrorHandler` extends `ExternalObservable`. This means:
-
-- you can attach observers directly to the error handler instance
-- you can replace the underlying observable instance by using `ErrorHandler->setNestedObservable()`
+- implemented using the [kuria/event](https://github.com/kuria/event) library
+- the error handler fires events as it handles errors
+- both built-in error screen implementations emit events as they render
 
 
-### Event class
+### <a name="error-handler-events"></a> Error handler events
 
-All events sent by the error handler are an instance of `Kuria\Error\ErrorHandlerEvent`.
-
-The event provides many methods to read information about the error and modify behavior
-of the error handler.
-
-Please refer to `src/ErrorHandlerEvent.php` to see all available methods.
+Possible events emitted by the `ErrorHandler` class:
 
 
-### Event names
+#### error
 
-- `ErrorHandlerEvent::RUNTIME`
-    - fired for runtime errors that should throw an `ErrorException`
-- `ErrorHandlerEvent::RUNTIME_SUPPRESSED`
-    - fired for runtime errors that are suppressed (by `error_reporting` setting or the `@` operator)
-- `ErrorHandlerEvent::FATAL`
-    - fired for uncaught exceptions and fatal errors
+- emitted when a PHP errors occurs
+- arguments:
+    1. `object $exception`
+        - instance of `ErrorException` or `Kuria\Error\ContextualErrorException`
+    2. `bool $debug`
+    3. `bool &$suppressed`
+        - reference to the suppressed state of the error
+        - the error can be suppressed by current `error_reporting` configuration or by other event
+          handlers
 
 
-### Listener examples
+#### fatal
+
+- emitted when an uncaught exception or a fatal error is being handled
+- arguments:
+    1. `object $exception`
+    2. `bool $debug`
+    3. `FatalErrorHandlerInterface &$handler`
+        - reference to the current fatal error handler
 
 
-#### Error logging
+#### emerg
 
-Logging fatal errors into a text file.
+- emitted when another exceptions has been thrown during fatal error handling
+- more uncaught exceptions or a fatal error at this point will just kill the script
+- arguments:
+    1. `object $exception`
+    2. `bool $debug`
 
-    use Kuria\Error\ErrorHandlerEvent;
-    use Kuria\Error\DebugUtils;
 
-    $errorHandler->addListener(ErrorHandlerEvent::FATAL, function (ErrorHandlerEvent $event) {
-        $logFileName = sprintf('./errors_%s.log', $event->getDebug() ? 'debug' : 'prod');
+### <a name="web-error-screen-events"></a> Web error screen events
 
-        $exception = $event->getException();
+Possible events emitted by the `WebErrorScreen` class:
+
+
+#### render
+
+- emitted when rendering in **non-debug mode**
+- arguments:
+    1. `array &$view`
+        - `title`: used in `<title>`
+        - `heading`: used in `<h1>`
+        - `text`: content of the default paragraph
+        - `extras`: custom HTML after the main section
+            - append to this using `.=`
+    2. `object $exception`
+    3. `string|null $outputBuffer`
+    4. `WebErrorScreen $screen`
+
+
+#### render.debug
+
+- emitted when rendering in **debug mode**
+- arguments:
+    1. `array &$view`
+        - `title`: used in `<title>`
+        - `extras`: custom HTML after the main section
+            - append to this using `.=`
+    2. `object $exception`
+    3. `string|null $outputBuffer`
+    4. `WebErrorScreen $screen`
+
+
+#### layout.css
+
+- emitted when CSS styles are being output
+- arguments:
+    1. `string &$css`
+        - reference to the CSS output
+        - it can be appended to or replaced
+    2. `bool $debug`
+    3. `WebErrorScreen $screen`
+
+
+#### layout.js
+
+- emitted when JavaScript code is being output
+- arguments:
+    1. `string &$js`
+        - reference to the JavaScript output
+        - it can be appended to or replaced
+    2. `bool $debug`
+    3. `WebErrorScreen $screen`
+
+
+### <a name="cli-error-screen-events"></a> CLI error screen events
+
+Possible events emitted by the `CliErrorScreen` class:
+
+
+#### render
+
+- emitted when rendering in non-debug mode
+- arguments:
+    1. `array &$view`
+        - `title`: first line of output
+        - `output`: error message
+            - you can append to it using `.=`
+    2. `object $exception`
+    3. `string|null $outputBuffer`
+    4. `CliErrorScreen $screen`
+
+
+#### render.debug
+
+- emitted when rendering in debug mode
+- arguments:
+    1. `array &$view`
+        - `title`: first line of output
+        - `output`: exception information
+            - you can append to it using `.=`
+    2. `object $exception`
+    3. `string|null $outputBuffer`
+    4. `CliErrorScreen $screen`
+
+
+### <a name="listener-examples"></a> Event listener examples
+
+#### Notes
+
+- do not typehint the `Exception` class in your listeners if you want to be compatible
+  with the new exception hierarchy in PHP 7
+
+
+#### <a name="listener-logging"></a> Logging
+
+Logging unhandled errors into a file.
+
+    use Kuria\Error\Util\Debug;
+
+    $errorHandler->on('fatal', function ($exception, $debug) {
+        $logFilePath = sprintf('./errors_%s.log', $debug ? 'debug' : 'prod');
 
         $entry = sprintf(
             "[%s] %s - %s in file %s on line %d\n",
             date('Y-m-d H:i:s'),
-            DebugUtils::getExceptionName($exception),
+            Debug::getExceptionName($exception),
             $exception->getMessage(),
             $exception->getFile(),
             $exception->getLine()
         );
 
-        file_put_contents($logFileName, $entry, FILE_APPEND);
+        file_put_contents($logFilePath, $entry, FILE_APPEND | LOCK_EX);
     });
 
 
-#### Disabling the "@" operator
+#### <a name="listener-disable-shutup"></a> Disabling the "@" operator
 
 This listener causes statements like `echo @$invalidVariable;` to throw an exception regardless
 of the "shut-up" operator.
 
-    use Kuria\Error\ErrorHandlerEvent;
-
-    $errorHandler->addListener(ErrorHandlerEvent::RUNTIME_SUPPRESSED, function (ErrorHandlerEvent $event) {
-        if (0 === error_reporting()) {
-            $event->forceRuntimeException();
-        }
+    $errorHandler->on('error', function ($exception, $debug, &$suppressed) {
+        $suppressed = false;
     });
 
 
-#### Altering the error screen
+#### <a name="listener-custom-content"></a> Altering the error screens
 
-The error screen can be modified right before it is rendered.
+Examples for the web error screen.
 
-Please refer to `src/WebExceptionRenderer.php` to see all public properties that can be modified.
+Changing default labels of the non-debug error screen:
 
-    use Kuria\Error\ErrorHandlerEvent;
-    use Kuria\Error\WebExceptionRenderer;
+    use Kuria\Error\Screen\WebErrorScreen;
 
-    $errorHandler->addListener(ErrorHandlerEvent::FATAL, function (ErrorHandlerEvent $event) {
-        $renderer = $event->getRenderer();
-
-        if ($renderer instanceof WebExceptionRenderer) {
-            if ($event->getDebug()) {
-                // debug mode
-                $renderer->extraCss .= '#my-section {background-color: red; color: white;}';
-                $renderer->extraHtml .= '<div id="my-section" class="section minor standalone">Example custom section</div>';
-            } else {
-                // non-debug mode
-                $renderer->title = 'It is all your fault!';
-                $renderer->text = 'You have broken everything and now I hate you.';
-            }
+    $errorHandler->on('fatal', function ($exception, $debug, $screen) {
+       if (!$debug && $screen instanceof WebErrorScreen) {
+            $screen->on('render', function (&$view) {
+                $view['heading'] = 'It is all your fault!';
+                $view['text'] = 'You have broken everything and now I hate you.';
+            });
         }
     });
 
+Adding customized section to the debug screen:
 
-#### Disabling the error screen renderer
+    use Kuria\Error\Screen\WebErrorScreen;
 
-If you want to disable any error output for whatever reason.
-
-    use Kuria\Error\ErrorHandlerEvent;
-
-    $errorHandler->addListener(ErrorHandlerEvent::FATAL, function (ErrorHandlerEvent $event) {
-        $event->disableRenderer();
-    });
-
-
-#### Replacing the error screen renderer
-
-Adding CSS and HTML may not be enough. In that case you are free to implement your own renderer.
-
-**Note**: exceptions thrown from the `render()` method will not be displayed, but passed
-to the emergency handler callback (if any). See the emergency handler section far below.
-
-    use Kuria\Error\ErrorHandlerEvent;
-    use Kuria\Error\WebExceptionRenderer;
-    use Kuria\Error\ExceptionRendererInterface;
-
-    class MyCustomRenderer implements ExceptionRendererInterface
-    {
-        public function render($debug, \Exception $exception, $outputBuffer = null)
-        {
-            echo "There was an error :( It said: {$exception->getMessage()}";
-        }
-    }
-
-    $errorHandler->addListener(ErrorHandlerEvent::FATAL, function (ErrorHandlerEvent $event) {
-        if ($event->getRenderer() instanceof WebExceptionRenderer) {
-            $event->replaceRenderer(new MyCustomRenderer());
+    $errorHandler->on('fatal', function ($exception, $debug, $screen) {
+       if ($debug && $screen instanceof WebErrorScreen) {
+            $screen
+                ->on('layout.css', function (&$css) {
+                    $css .= '#custom-group {color: #f60000;}';
+                })
+                ->on('render.debug', function (&$view) {
+                    $view['extras'] .= <<<HTML
+    <div id="custom-group" class="group">
+        <div class="section">
+            Example of a custom section
+        </div>
+    </div>
+    HTML;
+                })
+            ;
         }
     });
-
-
-### Autoloading during compile-time errors
-
-Autoloading may not be available during compile-time errors. This is a limitation
-of PHP and supposedly "not a bug".
-
-- [https://bugs.php.net/bug.php?id=42098](https://bugs.php.net/bug.php?id=42098)
-- [https://bugs.php.net/bug.php?id=54054](https://bugs.php.net/bug.php?id=54054)
-
-Implications:
-
-- this does not affect fatal error listeners (`ErrorHandlerEvent::FATAL`)
-- if your listener does not rely on autoloading, you are safe
-- if your listener needs autoloading, this could result in a "Class '...' not found" fatal error
-    - you can call `Kuria\Error\DebugUtils::isAutoloadingActive()` and act accordingly
-    - the error handler is smart enough to handle this case and shows both the fatal error and the original error
-
-
-## Emergency handler
-
-Exceptions thrown during rendering of an error are not be displayed. They are caught and passed to the
-configured emergency handler callback (if any). This should not happen, unless there is a bug
-in the current renderer implementation.
-
-
-- to register an emergency handler callback, use the `ErrorHandler->setEmergencyHandler()` method
-- the callback is passed a single argument - an `Exception` instance
-    - the exception contains all previous exceptions chained together

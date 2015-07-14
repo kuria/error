@@ -1,11 +1,11 @@
 {
     "name": "kuria/error",
-    "description": "Makes PHP errors suck less.",
-    "keywords": ["error", "exception", "error handler", "exception handler", "fatal", "debug", "debugger", "log", "logger"],
+    "description": "Makes handling and debugging PHP errors suck less.",
+    "keywords": ["error", "exception", "error handler", "exception handler", "fatal", "debug", "debugger"],
     "license": "MIT",
     "require": {
         "php": ">=5.3.0",
-        "kuria/event": "~0.1.0"
+        "kuria/event": "~0.2.0"
     },
     "autoload": {
         "psr-4": {

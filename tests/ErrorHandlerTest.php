@@ -2,54 +2,109 @@
 
 namespace Kuria\Error;
 
-use Kuria\Event\EventEmitter;
-use Kuria\Event\EventEmitterInterface;
+use Kuria\Error\FatalErrorHandlerInterface;
 
 class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 {
     public function testConfig()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
         $handler->setDebug(true);
         $handler->setCwd(__DIR__);
+        $handler->setFatalHandler();
     }
 
     /**
-     * @expectedException ErrorException
+     * @expectedException        ErrorException
      * @expectedExceptionMessage Something went wrong
      */
     public function testOnError()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
         $handler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
     }
 
+    /**
+     * @expectedException        Kuria\Error\ContextualErrorException
+     * @expectedExceptionMessage Something went wrong
+     */
+    public function testOnErrorWithContext()
+    {
+        $handler = $this->getErrorHandlerMock();
+
+        $handler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__, array('foo' => 'bar'));
+    }
+
     public function testOnErrorSuppressed()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
         @$handler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
     }
 
     public function testOnException()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
-        $handler->expects($this->once())
-            ->method('renderException')
+        $handler
+            ->expects($this->once())
+            ->method('handleFatal')
         ;
 
         $handler->onException(new \Exception('Boo'));
     }
 
+    public function testOnExceptionDoesNotPrintOnEmergency()
+    {
+        $this->expectOutputString('');
+
+        $handler = $this->getErrorHandlerMock();
+
+        $emergencyException = new \Exception('Emergency exception');
+        $fatalException = new \Exception('Test fatal');
+
+        $handler
+            ->expects($this->once())
+            ->method('handleFatal')
+            ->willReturnCallback(function () use ($emergencyException) {
+                throw $emergencyException;
+            })
+        ;
+
+        $handler->onException($fatalException);
+    }
+
+    public function testOnExceptionPrintsOnEmergencyInDebug()
+    {
+        $this->expectOutputRegex('~Test fatal.*Emergency exception~s');
+
+        $handler = $this->getErrorHandlerMock();
+
+        $handler->setDebug(true);
+
+        $emergencyException = new \Exception('Emergency exception');
+        $fatalException = new \Exception('Test fatal');
+
+        $handler
+            ->expects($this->once())
+            ->method('handleFatal')
+            ->willReturnCallback(function () use ($emergencyException) {
+                throw $emergencyException;
+            })
+        ;
+
+        $handler->onException($fatalException);
+    }
+
     public function testOnShutdownWithNoErrors()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
-        $handler->expects($this->never())
-            ->method('renderException')
+        $handler
+            ->expects($this->never())
+            ->method('handleFatal')
         ;
 
         $handler->onShutdown();
@@ -57,10 +112,11 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testOnShutdownWithSuppressedError()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
-        $handler->expects($this->never())
-            ->method('renderException')
+        $handler
+            ->expects($this->never())
+            ->method('handleFatal')
         ;
 
         @strlen(); // simulate error for error_get_last() to work
@@ -72,10 +128,11 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testOnShutdownWithHandledError()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
-        $handler->expects($this->never())
-            ->method('renderException')
+        $handler
+            ->expects($this->never())
+            ->method('handleFatal')
         ;
 
         @strlen(); // simulate error for error_get_last() to work
@@ -90,10 +147,11 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testOnShutdownWithUnhandledError()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
-        $handler->expects($this->once())
-            ->method('renderException')
+        $handler
+            ->expects($this->once())
+            ->method('handleFatal')
         ;
 
         @strlen(); // simulate error for error_get_last() to work
@@ -104,11 +162,12 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
     public function testOnShutdownWhenActive()
     {
         $handler = $this->getMock(__NAMESPACE__ . '\ErrorHandler', array(
-            'renderException',
+            'handleFatal',
             'onException'
         ));
 
-        $handler->expects($this->once())
+        $handler
+            ->expects($this->once())
             ->method('onException')
         ;
 
@@ -127,12 +186,10 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testOnShutdownWhenNotActive()
     {
-        $handler = $this->getMock(__NAMESPACE__ . '\ErrorHandler', array(
-            'renderException',
-            'onException'
-        ));
+        $handler = $this->getErrorHandlerMock(true, true, false);
 
-        $handler->expects($this->never())
+        $handler
+            ->expects($this->never())
             ->method('onException')
         ;
 
@@ -143,9 +200,8 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testEvents()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
         $handler->setDebug(true);
-        $emitter = $this->addEventEmitterToErrorHandler($handler);
 
         $that = $this;
 
@@ -178,65 +234,56 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
         };
 
         // error listener
-        $errorListener = function (
-            ErrorHandlerEvent $event,
-            EventEmitterInterface $emitter
-        ) use (
+        $errorListener = function ($exception, $debug, $suppressed) use (
             $that,
             &$callCounters,
             &$listenerAssertionException
         ) {
-            try {
-                $that->assertTrue($event->getDebug());
-                $that->assertFalse($event->isFatal());
-                $that->assertFalse($event->isSuppressed());
-                $that->assertInstanceOf('ErrorException', $event->getException());
-                $that->assertFalse($event->isRendererEnabled());
-            } catch (\Exception $e) {
-                $listenerAssertionException = $e;
-            }
+            if (!$suppressed) {
+                try {
+                    $that->assertTrue($debug);
+                    $that->assertInstanceOf('ErrorException', $exception);
+                } catch (\PHPUnit_Exception $e) {
+                    $listenerAssertionException = $e;
+                }
 
-            ++$callCounters['error'];
+                ++$callCounters['error'];
+            }
         };
 
         // suppressed error listener
-        $suppressedErrorListener = function (
-            ErrorHandlerEvent $event,
-            EventEmitterInterface $emitter
-        ) use (
+        $suppressedErrorListener = function ($exception, $debug, $suppressed) use (
             $that,
             &$callCounters,
             &$listenerAssertionException
         ) {
-            try {
-                $that->assertTrue($event->getDebug());
-                $that->assertFalse($event->isFatal());
-                $that->assertTrue($event->isSuppressed());
-                $that->assertInstanceOf('ErrorException', $event->getException());
-                $that->assertFalse($event->isRendererEnabled());
-            } catch (\Exception $e) {
-                $listenerAssertionException = $e;
-            }
+            if ($suppressed) {
+                try {
+                    $that->assertTrue($debug);
+                    $that->assertInstanceOf('ErrorException', $exception);
+                } catch (\PHPUnit_Exception $e) {
+                    $listenerAssertionException = $e;
+                }
 
-            ++$callCounters['suppressed_error'];
+                ++$callCounters['suppressed_error'];
+            }
         };
 
         // fatal error listener
         $fatalErrorListener = function (
-            ErrorHandlerEvent $event,
-            EventEmitterInterface $emitter
+            $exception,
+            $debug,
+            $fatalHandler
         ) use (
             $that,
             &$callCounters,
             &$listenerAssertionException
         ) {
             try {
-                $that->assertTrue($event->getDebug());
-                $that->assertTrue($event->isFatal());
-                $that->assertFalse($event->isSuppressed());
-                $that->assertInstanceOf('Exception', $event->getException());
-                $that->assertInstanceOf(__NAMESPACE__ . '\ExceptionRendererInterface', $event->getRenderer());
-            } catch (\Exception $e) {
+                $that->assertTrue($debug);
+                $that->assertInstanceOf('Exception', $exception);
+                $that->assertInstanceOf(__NAMESPACE__ . '\FatalErrorHandlerInterface', $fatalHandler);
+            } catch (\PHPUnit_Exception $e) {
                 $listenerAssertionException = $e;
             }
 
@@ -244,10 +291,10 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
         };
 
         // attach listeners
-        $emitter
-            ->addListener(ErrorHandlerEvent::RUNTIME, $errorListener)
-            ->addListener(ErrorHandlerEvent::RUNTIME_SUPPRESSED, $suppressedErrorListener)
-            ->addListener(ErrorHandlerEvent::FATAL, $fatalErrorListener)
+        $handler
+            ->on('error', $errorListener)
+            ->on('error', $suppressedErrorListener)
+            ->on('fatal', $fatalErrorListener)
         ;
 
         // test
@@ -281,11 +328,10 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testEventSuppressRuntimeException()
     {
-        $handler = $this->createErrorHandlerMock();
-        $emitter = $this->addEventEmitterToErrorHandler($handler);
+        $handler = $this->getErrorHandlerMock();
 
-        $emitter->addListener(ErrorHandlerEvent::RUNTIME, function (ErrorHandlerEvent $event) {
-            $event->suppressRuntimeException();
+        $handler->on('error', function ($exception, $debug, &$suppressed) {
+            $suppressed = true;
         });
 
         // no exception should be thrown
@@ -298,47 +344,47 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
      */
     public function testEventForceRuntimeException()
     {
-        $handler = $this->createErrorHandlerMock();
-        $emitter = $this->addEventEmitterToErrorHandler($handler);
+        $handler = $this->getErrorHandlerMock();
 
-        $emitter->addListener(ErrorHandlerEvent::RUNTIME_SUPPRESSED, function (ErrorHandlerEvent $event) {
-            $event->forceRuntimeException();
+        $handler->on('error', function ($exception, $debug, &$suppressed) {
+            $suppressed = false;
         });
 
         // an exception should be thrown even if suppressed
         @$handler->onError(E_USER_ERROR, 'Test suppressed');
     }
 
-    public function testEventReplaceRenderer()
+    public function testEventReplaceFatalHandler()
     {
-        $handler = $this->createErrorHandlerMock();
-        $emitter = $this->addEventEmitterToErrorHandler($handler);
+        $handler = $this->getErrorHandlerMock(false, false);
+        $customFatalHandler = $this->getFatalErrorHandlerMock();
 
-        $rendererMock = $this->getMock(__NAMESPACE__ . '\ExceptionRendererInterface');
-
-        $handler->expects($this->once())
-            ->method('renderException')
-            ->with($this->identicalTo($rendererMock))
+        $customFatalHandler
+            ->expects($this->once())
+            ->method('handle')
         ;
 
-        $emitter->addListener(ErrorHandlerEvent::FATAL, function (ErrorHandlerEvent $event) use ($rendererMock) {
-            $event->replaceRenderer($rendererMock);
+        $handler->on('fatal', function ($exception, $debug, &$fatalHandler) use ($customFatalHandler) {
+            $fatalHandler = $customFatalHandler;
         });
 
         $handler->onException(new \Exception('Test fatal'));
     }
 
-    public function testEventDisableRenderer()
+    public function testEventDisableFatalHandler()
     {
-        $handler = $this->createErrorHandlerMock();
-        $emitter = $this->addEventEmitterToErrorHandler($handler);
+        $handler = $this->getErrorHandlerMock(false, false);
+        $customFatalHandler = $this->getFatalErrorHandlerMock();
 
-        $handler->expects($this->never())
-            ->method('renderException')
+        $customFatalHandler
+            ->expects($this->never())
+            ->method('handle')
         ;
 
-        $emitter->addListener(ErrorHandlerEvent::FATAL, function (ErrorHandlerEvent $event) {
-            $event->disableRenderer();
+        $handler->setFatalHandler($customFatalHandler);
+
+        $handler->on('fatal', function ($exception, $debug, &$fatalHandler) {
+            $fatalHandler = null;
         });
 
         $handler->onException(new \Exception('Test fatal'));
@@ -346,12 +392,11 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testEventExceptionChainingDuringRuntime()
     {
-        $handler = $this->createErrorHandlerMock();
-        $emitter = $this->addEventEmitterToErrorHandler($handler);
+        $handler = $this->getErrorHandlerMock();
 
         $eventException = new \Exception('Event exception');
 
-        $emitter->addListener(ErrorHandlerEvent::RUNTIME, function (ErrorHandlerEvent $event) use ($eventException) {
+        $handler->on('error', function () use ($eventException) {
             throw $eventException;
         });
 
@@ -369,14 +414,14 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
     public function testEventExceptionChainingDuringFatal()
     {
-        $handler = $this->createErrorHandlerMock();
-        $emitter = $this->addEventEmitterToErrorHandler($handler);
+        $handler = $this->getErrorHandlerMock();
 
         $eventException = new \Exception('Event exception');
         $fatalException = new \Exception('Test fatal');
 
-        $handler->expects($this->once())
-            ->method('renderException')
+        $handler
+            ->expects($this->once())
+            ->method('handleFatal')
             ->with(
                 $this->anything(),
                 $this->logicalAnd(
@@ -388,16 +433,16 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
             )
         ;
 
-        $emitter->addListener(ErrorHandlerEvent::FATAL, function (ErrorHandlerEvent $event) use ($eventException) {
+        $handler->on('fatal', function () use ($eventException) {
             throw $eventException;
         });
 
         $handler->onException($fatalException);
     }
 
-    public function testEmergencyHandler()
+    public function testEmergencyEvent()
     {
-        $handler = $this->createErrorHandlerMock();
+        $handler = $this->getErrorHandlerMock();
 
         $that = $this;
 
@@ -406,7 +451,7 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
         $emergencyHandlerCalled = false;
 
-        $handler->setEmergencyHandler(function (\Exception $exception) use (
+        $handler->on('emerg', function ($exception) use (
             $that,
             $emergencyException,
             $fatalException,
@@ -418,8 +463,9 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
             $that->assertSame($fatalException, $exception->getPrevious(), 'expected the original error to be chained to the emergency exception');
         });
 
-        $handler->expects($this->once())
-            ->method('renderException')
+        $handler
+            ->expects($this->once())
+            ->method('handleFatal')
             ->willReturnCallback(function () use ($emergencyException) {
                 throw $emergencyException;
             })
@@ -431,37 +477,45 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * Create error handler mock
-     *
+     * @param bool $disableExceptionHandling make onException() do nothnig
+     * @param bool $disableOnFatal           make handleFatal() do nothing
+     * @param bool $alwaysActive             make isActive() always return true
      * @return \PHPUnit_Framework_MockObject_MockObject|ErrorHandler
      */
-    private function createErrorHandlerMock()
+    private function getErrorHandlerMock($disableExceptionHandling = false, $disableOnFatal = true, $alwaysActive = true)
     {
-        $handler = $this->getMock(__NAMESPACE__ . '\ErrorHandler', array(
-            'renderException',
-            'isActive'
-        ));
+        $methods = array();
 
-        $handler->expects($this->any())
-            ->method('isActive')
-            ->willReturn(true)
-        ;
+        if ($alwaysActive) {
+            $methods[] = 'isActive';
+        }
+        if ($disableExceptionHandling) {
+            $methods[] = 'onException';
+        }
+        if ($disableOnFatal) {
+            $methods[] = 'handleFatal';
+        }
+
+        $handler = $this->getMock(__NAMESPACE__ . '\ErrorHandler', $methods);
+
+        $handler->setCleanBuffers(false);
+
+        if ($alwaysActive) {
+            $handler
+                ->expects($this->any())
+                ->method('isActive')
+                ->willReturn(true)
+            ;
+        }
 
         return $handler;
     }
 
     /**
-     * Add event emitter to the error handler
-     *
-     * @param ErrorHandler $handler
-     * @return EventEmitterInterface
+     * @return FatalErrorHandlerInterface
      */
-    private function addEventEmitterToErrorHandler(ErrorHandler $handler)
+    private function getFatalErrorHandlerMock()
     {
-        $emitter = new EventEmitter();
-
-        $handler->setNestedObservable($emitter);
-
-        return $emitter;
+        return $this->getMock(__NAMESPACE__ . '\FatalErrorHandlerInterface');
     }
 }
