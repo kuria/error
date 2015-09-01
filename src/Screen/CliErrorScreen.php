@@ -28,12 +28,12 @@ class CliErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
             : $this->doRender($exception, $outputBuffer)
         ;
 
-        if (!empty($title)) {
+        if ($title) {
             fwrite($outputStream, $title);
         }
 
-        if (!empty($output)) {
-            if (!empty($title)) {
+        if ($output) {
+            if ($title) {
                 fwrite($outputStream, "\n\n");
             }
 

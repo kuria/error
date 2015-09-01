@@ -53,7 +53,7 @@ class Debug
 
         switch ($type) {
             case 'array':
-                if ($currentLevel < $maxLevel && !empty($value)) {
+                if ($currentLevel < $maxLevel && $value) {
                     // full
                     $output .= 'array[' . sizeof($value) . "] {\n";
                     foreach ($value as $key => $item) {
@@ -101,7 +101,7 @@ class Debug
 
                     // dump
                     $output .= '[' . sizeof($properties) . ']';
-                    if ($currentLevel < $maxLevel && !empty($properties)) {
+                    if ($currentLevel < $maxLevel && $properties) {
                         // full
                         $output .= " {\n";
                         if ($actualProperties) {

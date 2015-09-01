@@ -476,7 +476,7 @@ HTML;
         }
 
         // trace
-        if (!empty($trace)) {
+        if ($trace) {
             $html .= $this->renderTrace($trace);
         }
 
