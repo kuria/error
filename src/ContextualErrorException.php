@@ -9,7 +9,7 @@ namespace Kuria\Error;
  */
 class ContextualErrorException extends \ErrorException
 {
-    /** @var array|null */
+    /** @var array */
     protected $context;
 
     public function __construct($message, $code, $severity, $filename, $line, $previous, array $context)
