@@ -181,7 +181,7 @@ class ErrorHandler extends EventEmitter
         
         $suppressed = 0 === ($code & error_reporting());
 
-        if ($this->hasAnyListeners('error')) {
+        if ($this->hasListeners('error')) {
             // make sure autoloading is active before emitting an event
             // (autoloading is inactive in some PHP versions during compile-time errors)
             // (the bug appears to have been fixed in PHP 5.4.21+, 5.5.5+ and 5.6.0+)
@@ -282,7 +282,7 @@ class ErrorHandler extends EventEmitter
         if (null !== $e) {
             $exception = Debug::joinExceptionChains($exception, $e);
 
-            if ($this->hasAnyListeners('emerg')) {
+            if ($this->hasListeners('emerg')) {
                 $this->emit('emerg', $exception, $this->debug);
             } elseif ($debug) {
                 // debug mode is on and there is no emergency listener
