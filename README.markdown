@@ -118,51 +118,43 @@ Possible events emitted by the `WebErrorScreen` class:
 #### render
 
 - emitted when rendering in **non-debug mode**
-- arguments:
-    1. `array &$view`
-        - `title`: used in `<title>`
-        - `heading`: used in `<h1>`
-        - `text`: content of the default paragraph
-        - `extras`: custom HTML after the main section
-            - append to this using `.=`
-    2. `object $exception`
-    3. `string|null $outputBuffer`
-    4. `WebErrorScreen $screen`
+- single argument - an event array with the following keys:
+    - `&title`: used in `<title>`
+    - `&heading`: used in `<h1>`
+    - `&text`: content of the default paragraph
+    - `&extras`: custom HTML after the main section
+    - `exception`: the exception
+    - `output_buffer`: string|null
+    - `screen`: instance of `WebErrorScreen`
 
 
 #### render.debug
 
 - emitted when rendering in **debug mode**
-- arguments:
-    1. `array &$view`
-        - `title`: used in `<title>`
-        - `extras`: custom HTML after the main section
-            - append to this using `.=`
-    2. `object $exception`
-    3. `string|null $outputBuffer`
-    4. `WebErrorScreen $screen`
+- single argument - an event array with the following keys:
+    - `&title`: used in `<title>`
+    - `&extras`: custom HTML after the main section
+    - `exception`: the exception
+    - `output_buffer`: string|null
+    - `screen`: instance of `WebErrorScreen`
 
 
 #### layout.css
 
 - emitted when CSS styles are being output
-- arguments:
-    1. `string &$css`
-        - reference to the CSS output
-        - it can be appended to or replaced
-    2. `bool $debug`
-    3. `WebErrorScreen $screen`
+- single argument - an event array with the following keys:
+    - `&css`: the CSS output
+    - `debug`: boolean
+    - `screen`: instance of `WebErrorScreen`
 
 
 #### layout.js
 
 - emitted when JavaScript code is being output
-- arguments:
-    1. `string &$js`
-        - reference to the JavaScript output
-        - it can be appended to or replaced
-    2. `bool $debug`
-    3. `WebErrorScreen $screen`
+- single argument - an event array with the following keys:
+    - `&js`: the JS output
+    - `debug`: boolean
+    - `screen`: instance of `WebErrorScreen`
 
 
 ### <a name="cli-error-screen-events"></a> CLI error screen events
@@ -173,27 +165,23 @@ Possible events emitted by the `CliErrorScreen` class:
 #### render
 
 - emitted when rendering in non-debug mode
-- arguments:
-    1. `array &$view`
-        - `title`: first line of output
-        - `output`: error message
-            - you can append to it using `.=`
-    2. `object $exception`
-    3. `string|null $outputBuffer`
-    4. `CliErrorScreen $screen`
+- single argument - an event array with the following keys:
+    - `&title`: first line of output
+    - `&output`: error message
+    - `exception`: the exception
+    - `output_buffer`: string|null
+    - `screen`: instance of `WebErrorScreen`
 
 
 #### render.debug
 
 - emitted when rendering in debug mode
-- arguments:
-    1. `array &$view`
-        - `title`: first line of output
-        - `output`: exception information
-            - you can append to it using `.=`
-    2. `object $exception`
-    3. `string|null $outputBuffer`
-    4. `CliErrorScreen $screen`
+- single argument - an event array with the following keys:
+    - `&title`: first line of output
+    - `&output`: error message
+    - `exception`: the exception
+    - `output_buffer`: string|null
+    - `screen`: instance of `WebErrorScreen`
 
 
 ### <a name="listener-examples"></a> Event listener examples

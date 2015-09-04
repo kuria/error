@@ -45,12 +45,12 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render', function (&$view, $exception, $outputBuffer, $screen) use ($that, &$handlerCalled) {
+        $screen->on('render', function ($event) use ($that, &$handlerCalled) {
             $that->assertFalse($handlerCalled);
-            $that->assertEventArguments($view, $exception, $outputBuffer, $screen);
+            $that->assertRenderEvent($event);
 
-            $view['title'] = 'Lorem ipsum';
-            $view['output'] .= "\n\nDolor sit amet";
+            $event['title'] = 'Lorem ipsum';
+            $event['output'] .= "\n\nDolor sit amet";
 
             $handlerCalled = true;
         });
@@ -72,12 +72,12 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render', function (&$view, $exception, $outputBuffer, $screen) use ($that, &$handlerCalled) {
+        $screen->on('render', function ($event) use ($that, &$handlerCalled) {
             $that->assertFalse($handlerCalled);
-            $that->assertEventArguments($view, $exception, $outputBuffer, $screen);
+            $that->assertRenderEvent($event);
 
-            $view['title'] = 'Lorem ipsum';
-            $view['output'] = 'Dolor sit amet';
+            $event['title'] = 'Lorem ipsum';
+            $event['output'] = 'Dolor sit amet';
 
             $handlerCalled = true;
         });
@@ -109,12 +109,12 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render.debug', function (&$view, $exception, $outputBuffer, $screen) use ($that, &$handlerCalled) {
+        $screen->on('render.debug', function ($event) use ($that, &$handlerCalled) {
             $that->assertFalse($handlerCalled);
-            $that->assertEventArguments($view, $exception, $outputBuffer, $screen);
+            $that->assertRenderEvent($event);
 
-            $view['title'] = 'Lorem ipsum';
-            $view['output'] .= "\n\nDolor sit amet";
+            $event['title'] = 'Lorem ipsum';
+            $event['output'] .= "\n\nDolor sit amet";
 
             $handlerCalled = true;
         });
@@ -135,12 +135,12 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render.debug', function (&$view, $exception, $outputBuffer, $screen) use ($that, &$handlerCalled) {
+        $screen->on('render.debug', function ($event) use ($that, &$handlerCalled) {
             $that->assertFalse($handlerCalled);
-            $that->assertEventArguments($view, $exception, $outputBuffer, $screen);
+            $that->assertRenderEvent($event);
 
-            $view['title'] = 'Lorem ipsum';
-            $view['output'] = 'Dolor sit amet';
+            $event['title'] = 'Lorem ipsum';
+            $event['output'] = 'Dolor sit amet';
 
             $handlerCalled = true;
         });
@@ -154,13 +154,19 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    public function assertEventArguments($view, $exception, $outputBuffer, $screen)
+    public function assertRenderEvent($event)
     {
-        $this->assertInternalType('array', $view);
-        $this->assertArrayHasKey('title', $view);
-        $this->assertArrayHasKey('output', $view);
-        $this->assertInternalType('object', $exception);
-        $this->assertSame('foo bar', $outputBuffer);
-        $this->assertInstanceOf(__NAMESPACE__ . '\CliErrorScreen', $screen);
+        $this->assertInternalType('array', $event);
+        $this->assertArrayHasKey('title', $event);
+        $this->assertArrayHasKey('output', $event);
+        $this->assertArrayHasKey('exception', $event);
+        $this->assertArrayHasKey('output_buffer', $event);
+        $this->assertArrayHasKey('screen', $event);
+
+        $this->assertInternalType('string', $event['title']);
+        $this->assertInternalType('string', $event['output']);
+        $this->assertInternalType('object', $event['exception']);
+        $this->assertSame('foo bar', $event['output_buffer']);
+        $this->assertInstanceOf(__NAMESPACE__ . '\CliErrorScreen', $event['screen']);
     }
 }

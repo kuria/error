@@ -50,14 +50,18 @@ class CliErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
      */
     protected function doRender($exception, $outputBuffer = null)
     {
-        $view = array(
-            'title' => 'An error has occured',
-            'output' => 'Enable debug mode for more details.',
-        );
+        $title = 'An error has occured';
+        $output = 'Enable debug mode for more details.';
 
-        $this->emitArray('render', array(&$view, $exception, $outputBuffer, $this));
+        $this->emit('render', array(
+            'title' => &$title,
+            'output' => &$output,
+            'exception' => $exception,
+            'output_buffer' => $outputBuffer,
+            'screen' => $this,
+        ));
 
-        return array($view['title'], $view['output']);
+        return array($title, $output);
     }
 
     /**
@@ -69,14 +73,18 @@ class CliErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
      */
     protected function doRenderDebug($exception, $outputBuffer = null)
     {
-        $view = array(
-            'title' => 'An error has occured',
-            'output' => Debug::renderException($exception, true, true),
-        );
+        $title = 'An error has occured';
+        $output = Debug::renderException($exception, true, true);
 
-        $this->emitArray('render.debug', array(&$view, $exception, $outputBuffer, $this));
+        $this->emit('render.debug', array(
+            'title' => &$title,
+            'output' => &$output,
+            'exception' => $exception,
+            'output_buffer' => $outputBuffer,
+            'screen' => $this,
+        ));
 
-        return array($view['title'], $view['output']);
+        return array($title, $output);
     }
 
     /**

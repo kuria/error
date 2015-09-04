@@ -11,10 +11,10 @@ use Kuria\Event\EventEmitter;
 /**
  * Web error screen
  *
- * @emits render(array &$view, object $exception, string|null $outputBuffer, WebErrorScreen $screen)
- * @emits render.debug(array &$view, object $exception, string|null $outputBuffer, WebErrorScreen $screen)
- * @emits layout.css(array &$css, bool $debug, WebErrorScreen $screen)
- * @emits layout.js(array &$js, bool $debug, WebErrorScreen $screen)
+ * @emits render(array $event) when rendering in non-debug mode, {@see doRender()}
+ * @emits render.debug(array $event) when rendering in debug mode, {@see doRenderDebug()}
+ * @emits layout.css(array $event) when compiling CSS styles, {@see getLayoutCss()}
+ * @emits layout.js(array $event) when compiling JS code, {@see getLayoutJs()}
  * 
  * @author ShiraNai7 <shira.cz>
  */
@@ -105,30 +105,36 @@ class WebErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
      */
     protected function doRender($exception, $outputBuffer = null)
     {
-        $view = array(
-            'title' => 'Internal server error',
-            'heading' => 'Internal server error',
-            'text' => 'Something went wrong while processing your request. Please try again later.',
-            'extras' => '',
-        );
+        $title = 'Internal server error';
+        $heading = 'Internal server error';
+        $text = 'Something went wrong while processing your request. Please try again later.';
+        $extras = '';
 
-        $this->emitArray('render', array(&$view, $exception, $outputBuffer, $this));
+        $this->emit('render', array(
+            'title' => &$title,
+            'heading' => &$heading,
+            'text' => &$text,
+            'extras' => &$extras,
+            'exception' => $exception,
+            'output_buffer' => $outputBuffer,
+            'screen' => $this,
+        ));
 
         $output = <<<HTML
 <div class="group">
     <i class="icon icon-error"></i>
     <div class="section major">
-        <h1>{$view['heading']}</h1>
-        <p class="message">{$view['text']}</p>
+        <h1>{$heading}</h1>
+        <p class="message">{$text}</p>
     </div>
 </div>\n
 HTML;
 
-        if ('' !== $view['extras']) {
-            $output .= "\n" . $view['extras'];
+        if ('' !== $extras) {
+            $output .= "\n" . $extras;
         }
 
-        return array($view['title'], $output);
+        return array($title, $output);
     }
 
     /**
@@ -140,12 +146,16 @@ HTML;
      */
     protected function doRenderDebug($exception, $outputBuffer = null)
     {
-        $view = array(
-            'title' => Debug::getExceptionName($exception),
-            'extras' => '',
-        );
+        $title = Debug::getExceptionName($exception);
+        $extras = '';
 
-        $this->emitArray('render.debug', array(&$view, $exception, $outputBuffer, $this));
+        $this->emit('render.debug', array(
+            'title' => &$title,
+            'extras' => &$extras,
+            'exception' => $exception,
+            'output_buffer' => $outputBuffer,
+            'screen' => $this,
+        ));
 
         $output = '';
         $chain = Debug::getExceptionChain($exception);
@@ -156,13 +166,13 @@ HTML;
 
             if (0 === $i) {
                 // render extras after the first exception
-                $output .= $view['extras'];
+                $output .= $extras;
                 $output .= $this->renderOutputBuffer($outputBuffer);
                 $output .= $this->renderPlaintextTrace($exception);
             }
         }
 
-        return array($view['title'], $output);
+        return array($title, $output);
     }
 
     /**
@@ -306,7 +316,11 @@ pre.context {padding: 10px; border: 1px solid #ddd; background-color: #fff;}
 
         $css = ob_get_clean();
 
-        $this->emitArray('layout.css', array(&$css, $debug, $this));
+        $this->emit('layout.css', array(
+            'css' => &$css,
+            'debug' => $debug,
+            'screen' => $this,
+        ));
 
         return $css;
     }
@@ -419,7 +433,11 @@ var Kuria;
 
         $js = ob_get_clean();
 
-        $this->emitArray('layout.js', array(&$js, $debug, $this));
+        $this->emit('layout.js', array(
+            'js' => &$js,
+            'debug' => $debug, 
+            'screen' => $this,
+        ));
 
         return $js;
     }

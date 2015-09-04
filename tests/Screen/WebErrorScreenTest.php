@@ -55,14 +55,14 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $screen = new WebErrorScreen();
 
-        $screen->on('render', function (&$view, $exception, $outputBuffer, $screen) use ($that, &$handlerCalled) {
+        $screen->on('render', function (array $event) use ($that, &$handlerCalled) {
             $that->assertFalse($handlerCalled);
-            $that->assertRenderEventArguments($view, $exception, $outputBuffer, $screen);
+            $that->assertRenderEvent($event, false);
 
-            $view['title'] = 'Oh no';
-            $view['heading'] = 'You broke everything';
-            $view['text'] = '... and now I hate you.';
-            $view['extras'] = 'custom content lorem ipsum';
+            $event['title'] = 'Oh no';
+            $event['heading'] = 'You broke everything';
+            $event['text'] = '... and now I hate you.';
+            $event['extras'] = 'custom content lorem ipsum';
 
             $handlerCalled = true;
         });
@@ -158,12 +158,12 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $screen = new WebErrorScreen();
 
-        $screen->on('render.debug', function (&$view, $exception, $outputBuffer, $screen) use ($that, &$handlerCalled) {
+        $screen->on('render.debug', function ($event) use ($that, &$handlerCalled) {
             $that->assertFalse($handlerCalled);
-            $that->assertDebugRenderEventArguments($view, $exception, $outputBuffer, $screen);
+            $that->assertRenderEvent($event, true);
 
-            $view['title'] = 'Oh no';
-            $view['extras'] = 'custom content lorem ipsum';
+            $event['title'] = 'Oh no';
+            $event['extras'] = 'custom content lorem ipsum';
 
             $handlerCalled = true;
         });
@@ -203,24 +203,19 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $screen = new WebErrorScreen();
 
         $screen
-            ->on('layout.css', function (&$css, $debug, $screen) use ($that, $debugEnabled, &$cssHandlerCalled) {
+            ->on('layout.css', function ($event) use ($that, $debugEnabled, &$cssHandlerCalled) {
                 $that->assertFalse($cssHandlerCalled);
-                $that->assertInternalType('string', $css);
-                $that->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $screen);
-                $that->assertSame($debugEnabled, $debug);
+                $that->assertAssetEvent($event, 'css', $debugEnabled);
 
-                $css .= '/* my custom css */';
+                $event['css'] .= '/* my custom css */';
 
                 $cssHandlerCalled = true;
             })
-            ->on('layout.js', function (&$js, $debug, $screen) use ($that, $debugEnabled, &$jsHandlerCalled) {
+            ->on('layout.js', function ($event) use ($that, $debugEnabled, &$jsHandlerCalled) {
                 $that->assertFalse($jsHandlerCalled);
-                $that->assertInternalType('string', $js);
-                $that->assertInternalType('boolean', $debug);
-                $that->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $screen);
-                $that->assertSame($debugEnabled, $debug);
+                $that->assertAssetEvent($event, 'js', $debugEnabled);
 
-                $js .= '/* my custom js */';
+                $event['js'] .= '/* my custom js */';
 
                 $jsHandlerCalled = true;
             })
@@ -291,25 +286,40 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         );
     }
 
-    public function assertRenderEventArguments($view, $exception, $outputBuffer, $screen)
+    public function assertRenderEvent($event, $debug)
     {
-        $this->assertInternalType('array', $view);
-        $this->assertArrayHasKey('title', $view);
-        $this->assertArrayHasKey('heading', $view);
-        $this->assertArrayHasKey('text', $view);
-        $this->assertArrayHasKey('extras', $view);
-        $this->assertInternalType('object', $exception);
-        $this->assertSame('foo bar output buffer', $outputBuffer);
-        $this->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $screen);
+        $this->assertInternalType('array', $event);
+        $this->assertArrayHasKey('title', $event);
+        $this->assertArrayHasKey('extras', $event);
+        $this->assertArrayHasKey('exception', $event);
+        $this->assertArrayHasKey('output_buffer', $event);
+        $this->assertArrayHasKey('screen', $event);
+
+        $this->assertInternalType('string', $event['title']);
+        $this->assertInternalType('string', $event['extras']);
+        $this->assertInternalType('object', $event['exception']);
+        $this->assertSame('foo bar output buffer', $event['output_buffer']);
+        $this->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $event['screen']);
+
+        if (!$debug) {
+            $this->assertArrayHasKey('heading', $event);
+            $this->assertArrayHasKey('text', $event);
+
+            $this->assertInternalType('string', $event['heading']);
+            $this->assertInternalType('string', $event['text']);
+        }
     }
 
-    public function assertDebugRenderEventArguments($view, $exception, $outputBuffer, $screen)
+    public function assertAssetEvent($event, $type, $debug)
     {
-        $this->assertInternalType('array', $view);
-        $this->assertArrayHasKey('title', $view);
-        $this->assertArrayHasKey('extras', $view);
-        $this->assertInternalType('object', $exception);
-        $this->assertSame('foo bar output buffer', $outputBuffer);
-        $this->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $screen);
+        $this->assertInternalType('array', $event);
+        $this->assertArrayHasKey($type, $event);
+        $this->assertArrayHasKey('debug', $event);
+        $this->assertArrayHasKey('screen', $event);
+
+        $this->assertInternalType('string', $event[$type]);
+        $this->assertInternalType('boolean', $event['debug']);
+        $this->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $event['screen']);
+        $this->assertSame($debug, $event['debug']);
     }
 }
