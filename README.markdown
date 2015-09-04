@@ -234,9 +234,9 @@ Changing default labels of the non-debug error screen:
 
     $errorHandler->on('fatal', function ($exception, $debug, $screen) {
        if (!$debug && $screen instanceof WebErrorScreen) {
-            $screen->on('render', function (&$view) {
-                $view['heading'] = 'It is all your fault!';
-                $view['text'] = 'You have broken everything and now I hate you.';
+            $screen->on('render', function ($event) {
+                $event['heading'] = 'It is all your fault!';
+                $event['text'] = 'You have broken everything and now I hate you.';
             });
         }
     });
@@ -248,11 +248,11 @@ Adding customized section to the debug screen:
     $errorHandler->on('fatal', function ($exception, $debug, $screen) {
        if ($debug && $screen instanceof WebErrorScreen) {
             $screen
-                ->on('layout.css', function (&$css) {
-                    $css .= '#custom-group {color: #f60000;}';
+                ->on('layout.css', function ($event) {
+                    $event['css'] .= '#custom-group {color: #f60000;}';
                 })
-                ->on('render.debug', function (&$view) {
-                    $view['extras'] .= <<<HTML
+                ->on('render.debug', function ($event) {
+                    $event['extras'] .= <<<HTML
     <div id="custom-group" class="group">
         <div class="section">
             Example of a custom section
