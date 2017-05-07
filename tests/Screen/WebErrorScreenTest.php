@@ -2,8 +2,6 @@
 
 namespace Kuria\Error\Screen;
 
-use Kuria\Error\ContextualErrorException;
-
 class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
 {
     /**
@@ -34,18 +32,7 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('foo bar output buffer', $output);
         $this->assertNotContains(basename(__FILE__), $output);
         $this->assertNotRegExp('~<ol[^>]+class="code-preview">~m', $output);
-        $this->assertNotContains('class="context', $output);
         $this->assertNotContains('<table class="trace">', $output);
-    }
-
-    /**
-     * @requires extension tidy
-     */
-    public function testRenderTidy()
-    {
-        $screen = new WebErrorScreen();
-
-        $this->validateHtml($this->doRender($screen, new \Exception('Test exception'), false));
     }
 
     public function testRenderEvent()
@@ -78,7 +65,6 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('foo bar output buffer', $output);
         $this->assertNotContains(basename(__FILE__), $output);
         $this->assertNotRegExp('~<ol[^>]+class="code-preview">~m', $output);
-        $this->assertNotContains('class="context', $output);
         $this->assertNotContains('<table class="trace">', $output);
     }
 
@@ -92,22 +78,12 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Test exception', $output);
         $this->assertContains(basename(__FILE__), $output);
         $this->assertRegExp('~<ol[^>]+class="code-preview">~m', $output);
-        $this->assertContains('class="context', $output);
         $this->assertContains('<table class="trace">', $output);
         $this->assertRegExp('~<h2>.*Exception.*</h2>~m', $output);
         $this->assertContains('Test nested exception', $output);
         $this->assertContains('foo bar output buffer', $output);
     }
 
-    /**
-     * @requires extension tidy
-     */
-    public function testDebugRenderTidy()
-    {
-        $screen = new WebErrorScreen();
-
-        $this->validateHtml($this->doRender($screen, $this->createTestException(), true));
-    }
 
     public function testDebugRenderLongOutputBuffer()
     {
@@ -176,8 +152,7 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Test exception', $output);
         $this->assertContains(basename(__FILE__), $output);
         $this->assertRegExp('~<ol[^>]+class="code-preview">~m', $output);
-        $this->assertContains('class="context', $output);
-        $this->assertContains('<table class="trace">', $output);
+                $this->assertContains('<table class="trace">', $output);
         $this->assertContains('custom content lorem ipsum', $output);
         $this->assertRegExp('~<h2>.*Exception.*</h2>~m', $output);
         $this->assertContains('Test nested exception', $output);
@@ -247,42 +222,17 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @param string $html
-     */
-    private function validateHtml($html)
-    {
-        $tidy = tidy_parse_string($html, array(), 'utf8');
-        $tidy->diagnose();
-
-        if (preg_match('/^(\d+) warnings?, (\d+) errors? were found![\r\n]/m', $tidy->errorBuffer, $match)) {
-            list(, $warningCount, $errorCount) = $match;
-
-            $warningCount -= substr_count($tidy->errorBuffer, 'trimming empty');
-            $warningCount -= substr_count($tidy->errorBuffer, 'proprietary attribute');
-            $warningCount -= substr_count($tidy->errorBuffer, '<meta> lacks');
-            $warningCount -= substr_count($tidy->errorBuffer, '<table> lacks "summary"');
-
-            if ($warningCount > 0 || $errorCount > 0) {
-                $this->fail($tidy->errorBuffer);
-            }
-        } else {
-            $this->fail('could not parse tidy error buffer');
-        }
-    }
-
-    /**
-     * @return ContextualErrorException
+     * @return \ErrorException
      */
     private function createTestException($message = 'Test exception')
     {
-        return new ContextualErrorException(
+        return new \ErrorException(
             $message,
             0,
             E_USER_ERROR,
             __FILE__,
             __LINE__,
-            new \Exception('Test nested exception'),
-            array('foo' => 'bar')
+            new \Exception('Test nested exception')
         );
     }
 

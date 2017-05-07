@@ -21,14 +21,6 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('start=', $html);
     }
 
-    /**
-     * @requires extension tidy
-     */
-    public function testRenderTidy()
-    {
-        $this->validateHtml(PhpCodePreview::code($this->getTestCode()));
-    }
-
     public function testRenderCustomClass()
     {
         $html = PhpCodePreview::code($this->getTestCode(), null, null, 'custom');
@@ -54,14 +46,6 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
         $this->assertRegExp('~class="active".+__construct~m', $html);
 
         $this->assertNotContains('start=', $html);
-    }
-
-    /**
-     * @requires extension tidy
-     */
-    public function testRenderActiveLineTidy()
-    {
-        $this->validateHtml(PhpCodePreview::code($this->getTestCode(), 10));
     }
 
     /**
@@ -92,14 +76,6 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('@var', $html);
         $this->assertNotContains('sayHello', $html);
         $this->assertNotContains('echo', $html);
-    }
-
-    /**
-     * @requires extension tidy
-     */
-    public function testRenderActiveLineRangeTidy()
-    {
-        $this->validateHtml(PhpCodePreview::code($this->getTestCode(), 10, 5));
     }
     
     public function testRenderFile()
@@ -149,26 +125,5 @@ MESSAGE;
 }
 
 CODE;
-    }
-
-    /**
-     * @param string $html
-     */
-    private function validateHtml($html)
-    {
-        $tidy = tidy_parse_string('<!doctype html><title>Test</title><body>' . $html . '</body>', array(), 'utf8');
-        $tidy->diagnose();
-
-        if (preg_match('/^(\d+) warnings?, (\d+) errors? were found![\r\n]/m', $tidy->errorBuffer, $match)) {
-            list(, $warningCount, $errorCount) = $match;
-
-            $warningCount -= substr_count($tidy->errorBuffer, 'trimming empty');
-
-            if ($warningCount > 0 || $errorCount > 0) {
-                $this->fail($tidy->errorBuffer);
-            }
-        } else {
-            $this->fail('could not parse tidy error buffer');
-        }
     }
 }
