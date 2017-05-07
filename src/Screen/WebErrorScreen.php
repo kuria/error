@@ -2,7 +2,6 @@
 
 namespace Kuria\Error\Screen;
 
-use Kuria\Error\ContextualErrorException;
 use Kuria\Error\FatalErrorHandlerInterface;
 use Kuria\Error\Util\Debug;
 use Kuria\Error\Util\PhpCodePreview;
@@ -498,40 +497,7 @@ HTML;
             $html .= $this->renderTrace($trace);
         }
 
-        // context
-        if ($exception instanceof ContextualErrorException) {
-            $html .= $this->renderContext($exception->getContext());
-        }
-
         $html .= "</div>\n";
-
-        return $html;
-    }
-
-    /**
-     * Render context
-     *
-     * @param array $context
-     * @return string html
-     */
-    public function renderContext(array $context)
-    {
-        $id = sprintf('context-%d', $this->getUid());
-
-        $html = <<<HTML
-<div class="section">
-    <h3 class="toggle-control closed" onclick="Kuria.Error.WebErrorScreen.toggle('{$id}', this)">Variable context</h3>
-    <pre id="{$id}" class="context hidden">\n
-HTML;
-
-        foreach ($context as $varname => $value) {
-            $html .= '$' . $this->escape(Debug::dumpString($varname, null, $this->encoding, null))
-                . ' = '
-                . $this->escape(Debug::dump($value, 2, 64, $this->encoding))
-            ;
-        }
-
-        $html .= "</pre>\n</div>\n";
 
         return $html;
     }

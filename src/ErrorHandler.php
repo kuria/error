@@ -51,9 +51,6 @@ class ErrorHandler extends EventEmitter
         if (!class_exists('Kuria\Error\Util\Debug')) {
             require __DIR__ . '/Util/Debug.php';
         }
-        if (!class_exists('Kuria\Error\ContextualErrorException')) {
-            require __DIR__ . '/ContextualErrorException.php';
-        }
     }
 
     /**
@@ -167,17 +164,13 @@ class ErrorHandler extends EventEmitter
      * @param string      $message message
      * @param string|null $file    file name
      * @param int|null    $line    line number
-     * @param array       $context variable context
      * @return bool
      */
-    public function onError($code, $message, $file = null, $line = null, array $context = null)
+    public function onError($code, $message, $file = null, $line = null)
     {
         $this->lastError = error_get_last();
 
-        $this->currentError = null !== $context
-            ? new ContextualErrorException($message, 0, $code, $file, $line, null, $context)
-            : new \ErrorException($message, 0, $code, $file, $line)
-        ;
+        $this->currentError = new \ErrorException($message, 0, $code, $file, $line);
         
         $suppressed = 0 === ($code & error_reporting());
 

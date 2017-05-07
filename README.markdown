@@ -83,7 +83,7 @@ Possible events emitted by the `ErrorHandler` class:
 - emitted when a PHP errors occurs
 - arguments:
     1. `object $exception`
-        - instance of `ErrorException` or `Kuria\Error\ContextualErrorException`
+        - instance of `ErrorException`
     2. `bool $debug`
     3. `bool &$suppressed`
         - reference to the suppressed state of the error

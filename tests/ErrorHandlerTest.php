@@ -26,17 +26,6 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
         $handler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
     }
 
-    /**
-     * @expectedException        Kuria\Error\ContextualErrorException
-     * @expectedExceptionMessage Something went wrong
-     */
-    public function testOnErrorWithContext()
-    {
-        $handler = $this->getErrorHandlerMock();
-
-        $handler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__, array('foo' => 'bar'));
-    }
-
     public function testOnErrorSuppressed()
     {
         $handler = $this->getErrorHandlerMock();
