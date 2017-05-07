@@ -57,8 +57,8 @@ class Debug
                     // full
                     $output .= 'array[' . sizeof($value) . "] {\n";
                     foreach ($value as $key => $item) {
-                        $output .= $indent . (is_string($key) ? self::dumpString($key, $maxStringLen, $encoding, '[]', '...') : "[{$key}]") . ' => ';
-                        $output .= self::dump($item, $maxLevel, $maxStringLen, $encoding, $currentLevel + 1);
+                        $output .= $indent . (is_string($key) ? static::dumpString($key, $maxStringLen, $encoding, '[]', '...') : "[{$key}]") . ' => ';
+                        $output .= static::dump($item, $maxLevel, $maxStringLen, $encoding, $currentLevel + 1);
                     }
                     if ($currentLevel > 1) {
                         $output .= str_repeat('    ', $currentLevel - 1);
@@ -95,7 +95,7 @@ class Debug
                         $actualProperties = false;
                     } else {
                         // use actual properties
-                        $properties = self::getObjectProperties($value, true, true);
+                        $properties = static::getObjectProperties($value, true, true);
                         $actualProperties = true;
                     }
 
@@ -109,15 +109,15 @@ class Debug
                                 $output .=
                                     $indent
                                     . implode(' ', \Reflection::getModifierNames($item->getModifiers())) . ' '
-                                    . self::dumpString($key, $maxStringLen, $encoding, '[]', '...')
+                                    . static::dumpString($key, $maxStringLen, $encoding, '[]', '...')
                                     . ' => '
                                 ;
-                                $output .= self::dump($item->getValue($value), $maxLevel, $maxStringLen, $encoding, $currentLevel + 1);
+                                $output .= static::dump($item->getValue($value), $maxLevel, $maxStringLen, $encoding, $currentLevel + 1);
                             }
                         } else {
                             foreach ($properties as $key => $item) {
-                                $output .= $indent . (is_string($key) ? self::dumpString($key, $maxStringLen, $encoding, '[]', '...') : "[{$key}]") . ' => ';
-                                $output .= self::dump($item, $maxLevel, $maxStringLen, $encoding, $currentLevel + 1);
+                                $output .= $indent . (is_string($key) ? static::dumpString($key, $maxStringLen, $encoding, '[]', '...') : "[{$key}]") . ' => ';
+                                $output .= static::dump($item, $maxLevel, $maxStringLen, $encoding, $currentLevel + 1);
                             }
                         }
                         $properties = $key = $item = null;
@@ -127,12 +127,12 @@ class Debug
                         $output .= '}';
                     } elseif (method_exists($value, '__toString')) {
                         // too deep or no properties - use __toString()
-                        $output .= ' ' . self::dumpString((string) $value, $maxStringLen, $encoding, '""', '...');
+                        $output .= ' ' . static::dumpString((string) $value, $maxStringLen, $encoding, '""', '...');
                     }
                 }
                 break;
             case 'string':
-                $output .= self::dumpString($value, $maxStringLen, $encoding, '""', '...');
+                $output .= static::dumpString($value, $maxStringLen, $encoding, '""', '...');
                 break;
             case 'integer':
                 $output .= $value;
@@ -393,7 +393,7 @@ class Debug
     public static function renderException($exception, $renderTrace = true, $renderPrevious = false)
     {
         $exceptions = $renderPrevious
-            ? self::getExceptionChain($exception)
+            ? static::getExceptionChain($exception)
             : array($exception)
         ;
         $totalExceptions = sizeof($exceptions);
@@ -405,7 +405,7 @@ class Debug
             }
 
             $output .= ($renderPrevious ? '[' . ($i + 1) . "/{$totalExceptions}] " : '')
-                . self::getExceptionName($exceptions[$i])
+                . static::getExceptionName($exceptions[$i])
                 . ': ' . ($exceptions[$i]->getMessage() ?: '<no message>')
                 . " in {$exceptions[$i]->getFile()} on line {$exceptions[$i]->getLine()}\n"
             ;
@@ -429,7 +429,7 @@ class Debug
         $name = null;
 
         if ($exception instanceof \ErrorException) {
-            $name = self::getErrorNameByCode($exception->getSeverity());
+            $name = static::getErrorNameByCode($exception->getSeverity());
         }
 
         if (null === $name) {
@@ -451,8 +451,8 @@ class Debug
      */
     public static function getErrorNameByCode($code)
     {
-        if (isset(self::$errorCodes[$code])) {
-            return self::$errorCodes[$code];
+        if (isset(static::$errorCodes[$code])) {
+            return static::$errorCodes[$code];
         }
     }
 

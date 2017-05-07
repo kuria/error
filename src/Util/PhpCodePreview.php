@@ -30,7 +30,7 @@ class PhpCodePreview
         $highlighted = @highlight_file($file, true);
 
         if (false !== $highlighted) {
-            return self::render($highlighted, $activeLine, $lineRange, $className);
+            return static::render($highlighted, $activeLine, $lineRange, $className);
         }
     }
 
@@ -48,7 +48,7 @@ class PhpCodePreview
         $code = @highlight_string($code, true);
 
         if (false !== $code) {
-            return self::render($code, $activeLine, $lineRange, $className);
+            return static::render($code, $activeLine, $lineRange, $className);
         }
     }
 
@@ -94,7 +94,7 @@ class PhpCodePreview
         ;
         for ($i = $start; $i <= $end; ++$i) {
             $output .= '<li' . (null !== $activeLine && $i + 1 === $activeLine ? ' class="active"' : '') . '>'
-                . self::repairHighlightedLine($lines[$i])
+                . static::repairHighlightedLine($lines[$i])
                 . "</li>\n"
             ;
         }
