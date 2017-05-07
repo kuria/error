@@ -689,8 +689,7 @@ HTML;
      */
     public function renderPlaintextTrace($exception)
     {
-        $trace = Debug::renderException($exception, true, true);
-        $trace[strlen($trace) - 1] = ''; // drop the last newline
+        $trace = rtrim(Debug::renderException($exception, true, true));
         $rows = 1 + min(10, preg_match_all('/\r\n|\n|\r/', $trace, $matches));
 
         return <<<HTML
