@@ -311,7 +311,7 @@ Adding a customized section to the debug screen:
    });
 
 
-.. |Web error screen in non-debug mode| image:: http://static.shira.cz/kuria/error/v0.2.x/non-debug-thumb.gif
-   :target: http://static.shira.cz/kuria/error/v0.2.x/non-debug.png
-.. |Web error screen in debug mode| image:: http://static.shira.cz/kuria/error/v0.2.x/debug-thumb.gif
-   :target: http://static.shira.cz/kuria/error/v0.2.x/debug.png
+.. |Web error screen in non-debug mode| image:: http://static.shira.cz/kuria/error/v1.0.x/non-debug-thumb.gif
+   :target: http://static.shira.cz/kuria/error/v1.0.x/non-debug.png
+.. |Web error screen in debug mode| image:: http://static.shira.cz/kuria/error/v1.0.x/debug-thumb.gif
+   :target: http://static.shira.cz/kuria/error/v1.0.x/debug.png
