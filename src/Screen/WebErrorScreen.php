@@ -466,9 +466,6 @@ var Kuria;
         $isMain = 0 === $index;
         $number = $index + 1;
 
-        $message = '';
-        $info = '';
-
         $title = Debug::getExceptionName($exception);
         $titleTag = $isMain ? 'h1' : 'h2';
 

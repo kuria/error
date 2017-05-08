@@ -350,6 +350,7 @@ class Debug
      */
     public static function joinExceptionChains()
     {
+        /** @var \Exception[] $nodes */
         $nodes = func_get_args();
 
         $lastNodeIndex = sizeof($nodes) - 1;

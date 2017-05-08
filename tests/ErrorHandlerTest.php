@@ -2,8 +2,6 @@
 
 namespace Kuria\Error;
 
-use Kuria\Error\FatalErrorHandlerInterface;
-
 class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 {
     public function testConfig()
@@ -217,6 +215,7 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
         // helper: rethrow listener assertion exception
         $rethrowListenerAssertionException = function () use (&$listenerAssertionException) {
+            /** @var \Exception $listenerAssertionException */
             if (null !== $listenerAssertionException) {
                 throw $listenerAssertionException;
             }
