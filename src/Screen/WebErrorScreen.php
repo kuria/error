@@ -274,7 +274,7 @@ pre {overflow-y: auto; max-height: 300px; line-height: 1.4; white-space: -moz-pr
 textarea, iframe {display: block; box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box;}
 textarea {width: 100%; margin: 1em 0; padding: 0.5em; border: 1px solid #aaa;}
 iframe {margin: 1em 0; border: 1px solid #aaa; width: 100%; height: 500px; background-color: #fff;}
-ol.code-preview {overflow-x: auto; padding-left: 60px; border: 1px solid #ddd; line-height: 1.5; font-family: monospace; background-color: #eee;}
+ol.code-preview {overflow-x: auto; padding-left: 60px; border: 1px solid #ddd; line-height: 1.5; font-family: monospace; word-break: break-all; background-color: #eee;}
 ol.code-preview > li {background-color: #fff; padding-left: 10px;}
 ol.code-preview > li.active {background-color: #ebf4ff;}
 
