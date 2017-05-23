@@ -2,31 +2,10 @@
 
 namespace Kuria\Error\Screen;
 
+use Kuria\Error\ErrorHandler;
+
 class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @param CliErrorScreen $screen
-     * @param object         $exception
-     * @param bool           $debug
-     * @param string|null    $outputBuffer
-     * @return string
-     */
-    private function doRender(CliErrorScreen $screen, $exception, $debug, $outputBuffer = 'foo bar')
-    {
-        $outputStream = fopen('php://memory', 'r+');
-
-        $screen->setOutputStream($outputStream);
-
-        $this->assertSame($outputStream, $screen->getOutputStream());
-
-        $screen->handle($exception, $debug, $outputBuffer);
-
-        $output = stream_get_contents($outputStream, -1, 0);
-        fclose($outputStream);
-
-        return $output;
-    }
-
     public function testRender()
     {
         $screen = new CliErrorScreen();
@@ -154,6 +133,9 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
+    /**
+     * @param array $event
+     */
     public function assertRenderEvent($event)
     {
         $this->assertInternalType('array', $event);
@@ -161,12 +143,33 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('output', $event);
         $this->assertArrayHasKey('exception', $event);
         $this->assertArrayHasKey('output_buffer', $event);
-        $this->assertArrayHasKey('screen', $event);
 
         $this->assertInternalType('string', $event['title']);
         $this->assertInternalType('string', $event['output']);
         $this->assertInternalType('object', $event['exception']);
         $this->assertSame('foo bar', $event['output_buffer']);
-        $this->assertInstanceOf(__NAMESPACE__ . '\CliErrorScreen', $event['screen']);
+    }
+
+    /**
+     * @param CliErrorScreen $screen
+     * @param object         $exception
+     * @param bool           $debug
+     * @param string|null    $outputBuffer
+     * @return string
+     */
+    private function doRender(CliErrorScreen $screen, $exception, $debug, $outputBuffer = 'foo bar')
+    {
+        $outputStream = fopen('php://memory', 'r+');
+
+        $screen->setOutputStream($outputStream);
+
+        $this->assertSame($outputStream, $screen->getOutputStream());
+
+        $screen->handle($exception, ErrorHandler::UNCAUGHT_EXCEPTION, $debug, $outputBuffer);
+
+        $output = stream_get_contents($outputStream, -1, 0);
+        fclose($outputStream);
+
+        return $output;
     }
 }

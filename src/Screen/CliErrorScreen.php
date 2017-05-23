@@ -2,31 +2,30 @@
 
 namespace Kuria\Error\Screen;
 
-use Kuria\Error\FatalErrorHandlerInterface;
-use Kuria\Error\Util\Debug;
+use Kuria\Debug\Error;
+use Kuria\Error\ExceptionHandlerInterface;
 use Kuria\Event\EventEmitter;
 
 /**
  * CLI error screen
  *
- * @emits render(array &$view, object $exception, string|null $outputBuffer, CliErrorScreen $screen)
- * @emits render.debug(array &$view, object $exception, string|null $outputBuffer, CliErrorScreen $screen)
+ * @emits render(array &$view, \Throwable $exception, string|null $outputBuffer, CliErrorScreen $screen)
+ * @emits render.debug(array &$view, \Throwable $exception, string|null $outputBuffer, CliErrorScreen $screen)
  * 
  * @author ShiraNai7 <shira.cz>
  */
-class CliErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
+class CliErrorScreen extends EventEmitter implements ExceptionHandlerInterface
 {
     /** @var resource */
     protected $outputStream;
 
-    public function handle($exception, $debug, $outputBuffer = null)
+    public function handle($exception, $errorType, $debug, $outputBuffer = null)
     {
         $outputStream = $this->getOutputStream();
 
         list($title, $output) = $debug
             ? $this->doRenderDebug($exception, $outputBuffer)
-            : $this->doRender($exception, $outputBuffer)
-        ;
+            : $this->doRender($exception, $outputBuffer);
 
         if ($title) {
             fwrite($outputStream, $title);
@@ -44,8 +43,8 @@ class CliErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
     /**
      * Render the exception (non-debug)
      *
-     * @param object      $exception
-     * @param string|null $outputBuffer
+     * @param \Throwable|\Exception $exception
+     * @param string|null $          outputBuffer
      * @return array title, output
      */
     protected function doRender($exception, $outputBuffer = null)
@@ -58,7 +57,6 @@ class CliErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
             'output' => &$output,
             'exception' => $exception,
             'output_buffer' => $outputBuffer,
-            'screen' => $this,
         ));
 
         return array($title, $output);
@@ -67,21 +65,20 @@ class CliErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
     /**
      * Render the exception (debug)
      *
-     * @param object      $exception
-     * @param string|null $outputBuffer
+     * @param \Throwable|\Exception $exception
+     * @param string|null           $outputBuffer
      * @return array title, output
      */
     protected function doRenderDebug($exception, $outputBuffer = null)
     {
         $title = 'An error has occured';
-        $output = Debug::renderException($exception, true, true);
+        $output = Error::renderException($exception, true, true);
 
         $this->emit('render.debug', array(
             'title' => &$title,
             'output' => &$output,
             'exception' => $exception,
             'output_buffer' => $outputBuffer,
-            'screen' => $this,
         ));
 
         return array($title, $output);

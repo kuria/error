@@ -2,24 +2,10 @@
 
 namespace Kuria\Error\Screen;
 
+use Kuria\Error\ErrorHandler;
+
 class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @param WebErrorScreen $screen
-     * @param object         $exception
-     * @param bool           $debug
-     * @param string|null    $outputBuffer
-     * @return string
-     */
-    private function doRender(WebErrorScreen $screen, $exception, $debug, $outputBuffer = 'foo bar output buffer')
-    {
-        ob_start();
-
-        $screen->handle($exception, $debug, $outputBuffer);
-
-        return ob_get_clean();
-    }
-
     public function testRender()
     {
         $screen = new WebErrorScreen();
@@ -193,8 +179,7 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
                 $event['js'] .= '/* my custom js */';
 
                 $jsHandlerCalled = true;
-            })
-        ;
+            });
 
         $output = $this->doRender($screen, $this->createTestException(), $debugEnabled);
 
@@ -212,8 +197,7 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $screen
             ->setEncoding('KOI8-R')
-            ->setHtmlCharset('KOI8-R')
-        ;
+            ->setHtmlCharset('KOI8-R');
 
         $output = $this->doRender($screen, $this->createTestException($encodedMessage), true);
 
@@ -243,13 +227,11 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('extras', $event);
         $this->assertArrayHasKey('exception', $event);
         $this->assertArrayHasKey('output_buffer', $event);
-        $this->assertArrayHasKey('screen', $event);
 
         $this->assertInternalType('string', $event['title']);
         $this->assertInternalType('string', $event['extras']);
         $this->assertInternalType('object', $event['exception']);
         $this->assertSame('foo bar output buffer', $event['output_buffer']);
-        $this->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $event['screen']);
 
         if (!$debug) {
             $this->assertArrayHasKey('heading', $event);
@@ -265,11 +247,25 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertInternalType('array', $event);
         $this->assertArrayHasKey($type, $event);
         $this->assertArrayHasKey('debug', $event);
-        $this->assertArrayHasKey('screen', $event);
 
         $this->assertInternalType('string', $event[$type]);
         $this->assertInternalType('boolean', $event['debug']);
-        $this->assertInstanceOf(__NAMESPACE__ . '\WebErrorScreen', $event['screen']);
         $this->assertSame($debug, $event['debug']);
+    }
+
+    /**
+     * @param WebErrorScreen $screen
+     * @param object         $exception
+     * @param bool           $debug
+     * @param string|null    $outputBuffer
+     * @return string
+     */
+    private function doRender(WebErrorScreen $screen, $exception, $debug, $outputBuffer = 'foo bar output buffer')
+    {
+        ob_start();
+
+        $screen->handle($exception, ErrorHandler::UNCAUGHT_EXCEPTION, $debug, $outputBuffer);
+
+        return ob_get_clean();
     }
 }

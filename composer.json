@@ -5,7 +5,8 @@
     "license": "MIT",
     "require": {
         "php": ">=5.3.0",
-        "kuria/event": "^1.0.0"
+        "kuria/event": "^1.0.0",
+        "kuria/debug": "^1.0.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^4.8"

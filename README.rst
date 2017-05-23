@@ -6,41 +6,44 @@ Makes handling and debugging PHP errors suck less.
 |Web error screen in debug mode|
 
 .. contents::
+   :depth: 2
 
 
 Features
 ********
 
--  debug and non-debug mode
--  converts PHP errors (warnings, notices, etc) into exceptions
+- debug / production mode
+- converts PHP errors (warnings, notices, etc.) into exceptions
 
-   -  respects the global ``error_reporting`` setting
+  - respects the global ``error_reporting`` setting
 
--  handles uncaught exceptions and fatal errors (including parse errors)
--  CLI error screen (writes errors to STDERR)
--  web error screen (renders errors for web browsers)
+- handles uncaught exceptions and fatal errors (including parse and out-of-memory errors)
+- diplays errors in a readable manner depending on the environment
 
-   - | non-debug mode:
-     | |Web error screen in non-debug mode|
+  - CLI error screen writes errors to stderr
+  - web error screen renders errors for web browsers
 
-     - simple error message
-       does not disclose any internal information
+    - | production mode does not disclose any internal information:
+      | |Web error screen in non-debug mode|
 
-   - | debug mode:
-     | |Web error screen in debug mode|
+      - simple error message
 
-     - file paths and line numbers
-     - highlighted code previews
-     - stack traces
-     - argument lists
-     - output buffer (can be shown as HTML too)
-     - plaintext trace (for copy-paste)
 
--  event system that can be utilised to:
+    - | debug mode shows all available info:
+      | |Web error screen in debug mode|
 
-   -  implement logging
-   -  suppress or force errors conditionally
-   -  change or add content to the error screens
+      - file paths and line numbers
+      - highlighted code previews
+      - stack traces
+      - argument lists
+      - output buffer (can be shown as HTML too)
+      - plaintext trace (for copy-paste)
+
+- event system that can be utilised to:
+
+  - implement logging
+  - suppress or force errors conditionally
+  - change or add content to the error screens
 
 
 Requirements
@@ -61,7 +64,8 @@ Usage example
    $debug = true; // true during development, false in production
    error_reporting(E_ALL | E_STRICT); // configure the error reporting
 
-   $errorHandler = new ErrorHandler($debug);
+   $errorHandler = new ErrorHandler();
+   $errorHandler->setDebug($debug);
    $errorHandler->register();
 
    // trigger an error to see the error handler in action
@@ -88,39 +92,58 @@ Possible events emitted by the ``ErrorHandler`` class:
 -  emitted when a PHP errors occurs
 -  arguments:
 
-   1. ``object $exception``
-
-      -  instance of ``ErrorException``
-
+   1. ``ErrorException $exception``
    2. ``bool $debug``
    3. ``bool &$suppressed``
 
-      -  reference to the suppressed state of the error
-      -  the error can be suppressed by current ``error_reporting`` configuration or by other event handlers
+      - reference to the suppression state of the error
+      - changing the value can force or prevent the suppression
+      - an error may be suppressed by PHP's ``error_reporting`` setting
+        or by other listenrs
 
 
-``fatal``
----------
+``exception``
+-------------
 
 -  emitted when an uncaught exception or a fatal error is being handled
 -  arguments:
 
    1. ``object $exception``
    2. ``bool $debug``
-   3. ``FatalErrorHandlerInterface &$handler``
+   3. ``int $errorType``
 
-      -  reference to the current fatal error handler
+      - ``ErrorHandler::FATAL_ERROR``
+      - ``ErrorHandler::UNCAUGHT_EXCEPTION``
+      - ``ErrorHandler::OUT_OF_MEMORY``
+
+.. WARNING::
+
+   Avoid performing memory-intensive tasks in listeners of this event if
+   ``$errorType`` is ``ErrorHandler::OUT_OF_MEMORY``.
 
 
-``emerg``
----------
+``failure``
+-----------
 
--  emitted when another exceptions has been thrown during fatal error handling
--  more uncaught exceptions or a fatal error at this point will just kill the script
--  arguments:
+- emitted when an uncaught exception or a fatal error could not be handled
+- this can happen when an ``exception`` event listener or the registered
+  exception handler causes an additional exception
+- throwing another exception or causing a fatal error at this point will
+  just kill the script
+- arguments:
 
-   1. ``object $exception``
-   2. ``bool $debug``
+  1. ``object $exception``
+  2. ``bool $debug``
+  3. ``int $errorType``
+
+     - ``ErrorHandler::FATAL_ERROR``
+     - ``ErrorHandler::UNCAUGHT_EXCEPTION``
+     - ``ErrorHandler::OUT_OF_MEMORY``
+
+.. WARNING::
+
+   Avoid performing memory-intensive tasks in listeners of this event if
+   ``$errorType`` is ``ErrorHandler::OUT_OF_MEMORY``.
 
 
 Web error screen events
@@ -132,7 +155,7 @@ Possible events emitted by the ``WebErrorScreen`` class:
 ``render``
 ----------
 
--  emitted when rendering in **non-debug mode**
+-  emitted when rendering in **production mode**
 -  single argument - an event array with the following keys:
 
    -  ``&title``: used in ``<title>``
@@ -141,7 +164,6 @@ Possible events emitted by the ``WebErrorScreen`` class:
    -  ``&extras``: custom HTML after the main section
    -  ``exception``: the exception
    -  ``output_buffer``: string\|null
-   -  ``screen``: instance of ``WebErrorScreen``
 
 
 ``render.debug``
@@ -154,7 +176,6 @@ Possible events emitted by the ``WebErrorScreen`` class:
    -  ``&extras``: custom HTML after the main section
    -  ``exception``: the exception
    -  ``output_buffer``: string\|null
-   -  ``screen``: instance of ``WebErrorScreen``
 
 
 ``layout.css``
@@ -165,7 +186,6 @@ Possible events emitted by the ``WebErrorScreen`` class:
 
    -  ``&css``: the CSS output
    -  ``debug``: boolean
-   -  ``screen``: instance of ``WebErrorScreen``
 
 
 ``layout.js``
@@ -176,7 +196,6 @@ Possible events emitted by the ``WebErrorScreen`` class:
 
    -  ``&js``: the JS output
    -  ``debug``: boolean
-   -  ``screen``: instance of ``WebErrorScreen``
 
 
 CLI error screen events
@@ -194,8 +213,7 @@ render
    -  ``&title``: first line of output
    -  ``&output``: error message
    -  ``exception``: the exception
-   -  ``output_buffer``: string\|null
-   -  ``screen``: instance of ``WebErrorScreen``
+   -  ``output_buffer``: string|null
 
 render.debug
 ------------
@@ -206,8 +224,7 @@ render.debug
    -  ``&title``: first line of output
    -  ``&output``: error message
    -  ``exception``: the exception
-   -  ``output_buffer``: string\|null
-   -  ``screen``: instance of ``WebErrorScreen``
+   -  ``output_buffer``: string|null
 
 
 Event listener examples
@@ -222,21 +239,21 @@ Notes
 Logging
 -------
 
-Logging unhandled errors into a file.
+Logging uncaught exceptions into a file:
 
 .. code:: php
 
    <?php
 
-   use Kuria\Error\Util\Debug;
+   use Kuria\Debug\Error;
 
-   $errorHandler->on('fatal', function ($exception, $debug) {
+   $errorHandler->on('exception', function ($exception, $debug) {
        $logFilePath = sprintf('./errors_%s.log', $debug ? 'debug' : 'prod');
 
        $entry = sprintf(
            "[%s] %s - %s in file %s on line %d\n",
            date('Y-m-d H:i:s'),
-           Debug::getExceptionName($exception),
+           Error::getExceptionName($exception),
            $exception->getMessage(),
            $exception->getFile(),
            $exception->getLine()
@@ -263,9 +280,12 @@ This listener causes statements like ``echo @$invalidVariable;`` to throw an exc
 Altering the error screens
 --------------------------
 
-Examples for the web error screen.
+.. NOTE::
 
-Changing default labels of the non-debug error screen:
+  Examples are for the ``WebErrorScreen``.
+
+
+Changing default labels in production mode:
 
 .. code:: php
 
@@ -273,14 +293,15 @@ Changing default labels of the non-debug error screen:
 
    use Kuria\Error\Screen\WebErrorScreen;
 
-   $errorHandler->on('fatal', function ($exception, $debug, $screen) {
-      if (!$debug && $screen instanceof WebErrorScreen) {
-           $screen->on('render', function ($event) {
-               $event['heading'] = 'It is all your fault!';
-               $event['text'] = 'You have broken everything and now I hate you.';
-           });
-       }
-   });
+   $exceptionHandler = $errorHandler->getExceptionHandler();
+
+   if (!$errorHandler->getDebug() && $exceptionHandler instanceof WebErrorScreen) {
+       $exceptionHandler->on('render', function ($event) {
+           $event['heading'] = 'It is all your fault!';
+           $event['text'] = 'You have broken everything and now I hate you.';
+       });
+   }
+
 
 
 Adding a customized section to the debug screen:
@@ -291,24 +312,23 @@ Adding a customized section to the debug screen:
 
    use Kuria\Error\Screen\WebErrorScreen;
 
-   $errorHandler->on('fatal', function ($exception, $debug, $screen) {
-      if ($debug && $screen instanceof WebErrorScreen) {
-           $screen
-               ->on('layout.css', function ($event) {
-                   $event['css'] .= '#custom-group {color: #f60000;}';
-               })
-               ->on('render.debug', function ($event) {
-                   $event['extras'] .= <<<HTML
+   $exceptionHandler = $errorHandler->getExceptionHandler();
+
+   if ($errorHandler->getDebug() && $exceptionHandler instanceof WebErrorScreen) {
+       $exceptionHandler
+           ->on('layout.css', function ($event) {
+               $event['css'] .= '#custom-group {color: #f60000;}';
+           })
+           ->on('render.debug', function ($event) {
+               $event['extras'] .= <<<HTML
    <div id="custom-group" class="group">
-       <div class="section">
-           Example of a custom section
-       </div>
+      <div class="section">
+          Example of a custom section
+      </div>
    </div>
    HTML;
-               })
-           ;
-       }
-   });
+          });
+   }
 
 
 .. |Web error screen in non-debug mode| image:: http://static.shira.cz/kuria/error/v1.0.x/non-debug-thumb.gif

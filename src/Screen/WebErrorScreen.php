@@ -2,8 +2,10 @@
 
 namespace Kuria\Error\Screen;
 
-use Kuria\Error\FatalErrorHandlerInterface;
-use Kuria\Error\Util\Debug;
+use Kuria\Debug\Dumper;
+use Kuria\Debug\Error;
+use Kuria\Error\ErrorHandler;
+use Kuria\Error\ExceptionHandlerInterface;
 use Kuria\Error\Util\PhpCodePreview;
 use Kuria\Event\EventEmitter;
 
@@ -17,7 +19,7 @@ use Kuria\Event\EventEmitter;
  * 
  * @author ShiraNai7 <shira.cz>
  */
-class WebErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
+class WebErrorScreen extends EventEmitter implements ExceptionHandlerInterface
 {
     /** @var string */
     protected $encoding = 'UTF-8';
@@ -29,11 +31,13 @@ class WebErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
     protected $maxCodePreviewFileSize = 524288; // 512kB
     /** @var int */
     protected $uidSeq = 0;
+    /** @var bool set in handle() based on error type */
+    protected $codePreviewEnabled;
 
     /**
      * Set encoding used to escape and dump values
      *
-     * Is must be supported by htmlentities() and the mb_*() functions.
+     * It must be supported by htmlentities() and the mb_*() functions.
      *
      * @param string $encoding
      * @return static
@@ -80,16 +84,17 @@ class WebErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
         return $this;
     }
 
-    public function handle($exception, $debug, $outputBuffer = null)
+    public function handle($exception, $errorType, $debug, $outputBuffer = null)
     {
         if (!headers_sent()) {
             header('Content-Type: text/html; charset=' . $this->htmlCharset);
         }
+
+        $this->codePreviewEnabled = $errorType !== ErrorHandler::OUT_OF_MEMORY;
         
         list($title, $html) = $debug
             ? $this->doRenderDebug($exception, $outputBuffer)
-            : $this->doRender($exception, $outputBuffer)
-        ;
+            : $this->doRender($exception, $outputBuffer);
 
         // render layout
         $this->renderLayout($debug, $title, $html);
@@ -98,8 +103,8 @@ class WebErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
     /**
      * Render the exception (non-debug)
      *
-     * @param object      $exception
-     * @param string|null $outputBuffer
+     * @param \Throwable|\Exception $exception
+     * @param string|null           $outputBuffer
      * @return array title, html
      */
     protected function doRender($exception, $outputBuffer = null)
@@ -116,7 +121,6 @@ class WebErrorScreen extends EventEmitter implements FatalErrorHandlerInterface
             'extras' => &$extras,
             'exception' => $exception,
             'output_buffer' => $outputBuffer,
-            'screen' => $this,
         ));
 
         $output = <<<HTML
@@ -139,13 +143,13 @@ HTML;
     /**
      * Render the exception (debug)
      *
-     * @param object      $exception
-     * @param string|null $outputBuffer
+     * @param \Throwable|\Exception $exception
+     * @param string|null           $outputBuffer
      * @return array title, html
      */
     protected function doRenderDebug($exception, $outputBuffer = null)
     {
-        $title = Debug::getExceptionName($exception);
+        $title = Error::getExceptionName($exception);
         $extras = '';
 
         $this->emit('render.debug', array(
@@ -153,11 +157,10 @@ HTML;
             'extras' => &$extras,
             'exception' => $exception,
             'output_buffer' => $outputBuffer,
-            'screen' => $this,
         ));
 
         $output = '';
-        $chain = Debug::getExceptionChain($exception);
+        $chain = Error::getExceptionChain($exception);
         $totalExceptions = sizeof($chain);
 
         for ($i = 0; $i < $totalExceptions; ++$i) {
@@ -181,7 +184,7 @@ HTML;
      * @param string $title   main title
      * @param string $content html content
      */
-    public function renderLayout($debug, $title, $content)
+    protected function renderLayout($debug, $title, $content)
     {
         $js = $this->getLayoutJs($debug);
         $css = $this->getLayoutCss($debug);
@@ -224,7 +227,7 @@ HTML;
      * @param bool $debug
      * @return string
      */
-    public function getLayoutCss($debug)
+    protected function getLayoutCss($debug)
     {
         ob_start();
 
@@ -318,7 +321,6 @@ pre.context {padding: 10px; border: 1px solid #ddd; background-color: #fff;}
         $this->emit('layout.css', array(
             'css' => &$css,
             'debug' => $debug,
-            'screen' => $this,
         ));
 
         return $css;
@@ -330,7 +332,7 @@ pre.context {padding: 10px; border: 1px solid #ddd; background-color: #fff;}
      * @param bool $debug
      * @return string
      */
-    public function getLayoutJs($debug)
+    protected function getLayoutJs($debug)
     {
         ob_start();
 
@@ -383,8 +385,7 @@ var Kuria;
 
             showTextareaAsHtml: function (textareaId, link) {
                 var textarea = document.getElementById(textareaId),
-                    iframe = document.getElementById('html-preview-' + textareaId)
-                ;
+                    iframe = document.getElementById('html-preview-' + textareaId);
 
                 if (textarea) {
                     if (iframe) {
@@ -434,8 +435,7 @@ var Kuria;
 
         $this->emit('layout.js', array(
             'js' => &$js,
-            'debug' => $debug, 
-            'screen' => $this,
+            'debug' => $debug,
         ));
 
         return $js;
@@ -447,7 +447,7 @@ var Kuria;
      * @param string $string the string to escape
      * @return string html
      */
-    public function escape($string)
+    protected function escape($string)
     {
         return htmlspecialchars($string, ENT_QUOTES | ENT_IGNORE, $this->encoding);
     }
@@ -455,18 +455,18 @@ var Kuria;
     /**
      * Render an exception
      *
-     * @param object $exception the exception instance
-     * @param int    $index     index of the current exception
-     * @param int    $total     total number of exceptions
+     * @param \Throwable|\Exception $exception the exception instance
+     * @param int                   $index     index of the current exception
+     * @param int                   $total     total number of exceptions
      * @return string html
      */
-    public function renderException($exception, $index, $total)
+    protected function renderException($exception, $index, $total)
     {
         $trace = $exception->getTrace();
         $isMain = 0 === $index;
         $number = $index + 1;
 
-        $title = Debug::getExceptionName($exception);
+        $title = Error::getExceptionName($exception);
         $titleTag = $isMain ? 'h1' : 'h2';
 
         $message = '<p class="message">' . nl2br($this->escape($exception->getMessage()), false) . '</p>';
@@ -505,7 +505,7 @@ HTML;
      * @param array $trace the trace array
      * @return string html
      */
-    public function renderTrace(array $trace)
+    protected function renderTrace(array $trace)
     {
         $traceCounter = sizeof($trace) - 1;
         $html = <<<HTML
@@ -593,11 +593,11 @@ HTML;
      * @param array $args array of arguments
      * @return string html
      */
-    public function renderArguments(array $args)
+    protected function renderArguments(array $args)
     {
         $html = "<h4>Arguments</h4>\n<table class=\"argument-list\"><tbody>\n";
         for ($i = 0, $argCount = sizeof($args); $i < $argCount; ++$i) {
-            $html .= "<tr><th>{$i}</th><td><pre>" . $this->escape(Debug::dump($args[$i], 2, 64, $this->encoding)) . "</pre></td></tr>\n";
+            $html .= "<tr><th>{$i}</th><td><pre>" . $this->escape(Dumper::dump($args[$i], 2, 64, $this->encoding)) . "</pre></td></tr>\n";
         }
         $html .= "</tbody></table>\n";
 
@@ -610,7 +610,7 @@ HTML;
      * @param string|null $outputBuffer
      * @return string html
      */
-    public function renderOutputBuffer($outputBuffer)
+    protected function renderOutputBuffer($outputBuffer)
     {
         if (null === $outputBuffer || '' === $outputBuffer) {
             return '';
@@ -618,14 +618,15 @@ HTML;
 
         // analyse value
         $message = null;
-        $show = false;
+        $show = true;
+        $enableShowAsHtml = true;
         if (strlen($outputBuffer) > $this->maxOutputBufferLength) {
             $message = 'The output buffer is too big to display.';
-        } elseif (0 !== preg_match('/[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F]/', $outputBuffer)) {
-            $message = 'The output buffer contains unprintable characters.';
-        } else {
-            $rows = 1 + min(10, preg_match_all('/\r\n|\n|\r/', $outputBuffer, $matches));
-            $show = true;
+            $show = false;
+        } elseif (0 !== preg_match('{[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F]}', $outputBuffer)) {
+            $message = 'The output buffer contains unprintable characters. See HEX dump below.';
+            $outputBuffer = Dumper::dumpStringAsHex($outputBuffer);
+            $enableShowAsHtml = false;
         }
 
         // render
@@ -639,28 +640,27 @@ HTML;
         <h2 class=\"toggle-control closed\" onclick=\"Kuria.Error.WebErrorScreen.toggle('{$wrapperId}', this)\">Output buffer <em>(" . strlen($outputBuffer) . ")</em></h2>
         <div id=\"{$wrapperId}\" class=\"hidden\">"
         . (null === $message ? '' : "<p>{$message}</p>\n")
-        . ($show ? "<textarea readonly id=\"{$textareaId}\" rows=\"{$rows}\" cols=\"80\">" . $this->escape($outputBuffer) . "</textarea>\n" : '')
-        . ($show ? "<p><a href=\"#\" onclick=\"Kuria.Error.WebErrorScreen.showTextareaAsHtml('{$textareaId}', this); return false;\">Show as HTML</a></p>\n" : '')
+        . ($show ? "<textarea readonly id=\"{$textareaId}\" rows=\"10\" cols=\"80\">" . $this->escape($outputBuffer) . "</textarea>\n" : '')
+        . ($show && $enableShowAsHtml ? "<p><a href=\"#\" onclick=\"Kuria.Error.WebErrorScreen.showTextareaAsHtml('{$textareaId}', this); return false;\">Show as HTML</a></p>\n" : '')
         . "</div>\n</div>\n</div>\n";
     }
 
     /**
      * Render a plaintext exception trace
      *
-     * @param object $exception
+     * @param \Throwable|\Exception $exception
      * @return string
      */
-    public function renderPlaintextTrace($exception)
+    protected function renderPlaintextTrace($exception)
     {
-        $trace = rtrim(Debug::renderException($exception, true, true));
-        $rows = 1 + min(10, preg_match_all('/\r\n|\n|\r/', $trace, $matches));
+        $trace = Error::renderException($exception, true, true);
 
         return <<<HTML
 <div class="group">
     <div class="section">
         <h2 class="toggle-control closed" onclick="Kuria.Error.WebErrorScreen.toggle('plaintext-trace', this)">Plaintext trace</h2>
         <div id="plaintext-trace" class="hidden">
-            <textarea readonly rows="{$rows}" cols="80" onclick="Kuria.Error.WebErrorScreen.selectTextareaContent(this)">{$this->escape($trace)}</textarea>
+            <textarea readonly rows="10" cols="80" onclick="Kuria.Error.WebErrorScreen.selectTextareaContent(this)">{$this->escape($trace)}</textarea>
         </div>
     </div>
 </div>\n
@@ -677,7 +677,11 @@ HTML;
      */
     protected function renderCodePreview($file, $line, $lineRange = 5)
     {
-        if (is_file($file) && filesize($file) < $this->maxCodePreviewFileSize) {
+        if (
+            $this->codePreviewEnabled
+            && is_file($file)
+            && filesize($file) < $this->maxCodePreviewFileSize
+        ) {
             return PhpCodePreview::file($file, $line, $lineRange);
         }
     }

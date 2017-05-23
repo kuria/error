@@ -90,13 +90,11 @@ class PhpCodePreview
         $output = '<ol'
             . ($start > 0 ? ' start="' . ($start + 1) . '"' : '')
             . (null !== $className ? ' class="' . $className . '"' : '')
-            . '>'
-        ;
+            . '>';
         for ($i = $start; $i <= $end; ++$i) {
             $output .= '<li' . (null !== $activeLine && $i + 1 === $activeLine ? ' class="active"' : '') . '>'
                 . static::repairHighlightedLine($lines[$i])
-                . "</li>\n"
-            ;
+                . "</li>\n";
         }
         $output .= "</ol>\n";
 
@@ -121,7 +119,7 @@ class PhpCodePreview
         }
 
         // missing </span> at the end
-        if (preg_match('~<span[^>]*>(?!.*</span>).*$~s', $line)) {
+        if (preg_match('{<span[^>]*>(?!.*</span>).*$}s', $line)) {
             $line .= '</span>';
         }
 

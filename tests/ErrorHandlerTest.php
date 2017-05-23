@@ -4,13 +4,40 @@ namespace Kuria\Error;
 
 class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 {
-    public function testConfig()
-    {
-        $handler = $this->getErrorHandlerMock();
+    /** @var ExceptionHandlerInterface|\PHPUnit_Framework_MockObject_MockObject */
+    private $exceptionHandlerMock;
+    /** @var TestErrorHandler|\PHPUnit_Framework_MockObject_MockObject */
+    private $errorHandler;
+    /** @var array[] */
+    private $scheduledAssertions;
 
-        $handler->setDebug(true);
-        $handler->setCwd(__DIR__);
-        $handler->setFatalHandler();
+    protected function setUp()
+    {
+        $this->exceptionHandlerMock = $this->getMock(__NAMESPACE__ . '\\ExceptionHandlerInterface');
+
+        $this->errorHandler = new TestErrorHandler($this->exceptionHandlerMock, 0);
+        $this->errorHandler->setCleanBuffers(false);
+        $this->errorHandler->setPrintUnhandledExceptionInDebug(false);
+        $this->errorHandler->setWorkingDirectory(null);
+
+        $this->scheduledAssertions = array();
+    }
+
+    public function testConfiguration()
+    {
+        $this->assertFalse($this->errorHandler->getDebug());
+
+        /** @var ExceptionHandlerInterface $exceptionHandlerMock */
+        $exceptionHandlerMock = $this->getMock(__NAMESPACE__ . '\\ExceptionHandlerInterface');
+
+        $this->errorHandler->setDebug(true);
+        $this->errorHandler->setWorkingDirectory(__DIR__);
+        $this->errorHandler->setExceptionHandler($exceptionHandlerMock);
+        $this->errorHandler->setCleanBuffers(false);
+        $this->errorHandler->setPrintUnhandledExceptionInDebug(false);
+
+        $this->assertTrue($this->errorHandler->getDebug());
+        $this->assertSame($exceptionHandlerMock, $this->errorHandler->getExceptionHandler());
     }
 
     /**
@@ -19,491 +46,429 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
      */
     public function testOnError()
     {
-        $handler = $this->getErrorHandlerMock();
-
-        $handler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
+        $this->errorHandler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
     }
 
     public function testOnErrorSuppressed()
     {
-        $handler = $this->getErrorHandlerMock();
-
-        @$handler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
+        @$this->errorHandler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
     }
 
-    public function testOnException()
+    public function testOnUncaughtException()
     {
-        $handler = $this->getErrorHandlerMock();
+        $exception = new \Exception();
 
-        $handler
-            ->expects($this->once())
-            ->method('handleFatal')
-        ;
+        $this->exceptionHandlerMock->expects($this->once())
+            ->method('handle')
+            ->with(
+                $this->identicalTo($exception),
+                $this->identicalTo(ErrorHandler::UNCAUGHT_EXCEPTION)
+            );
 
-        $handler->onException(new \Exception('Boo'));
+        $this->errorHandler->onUncaughtException($exception);
     }
 
-    public function testOnExceptionDoesNotPrintOnEmergency()
+    public function testDoesNotPrintUnhandledExceptionsWhenNotInDebugMode()
     {
+        $this->errorHandler->setPrintUnhandledExceptionInDebug(true);
+
+        $exceptionHandlerException = new \Exception('Exception handler exception');
+        $uncaughtException = new \Exception('Uncaught exception');
+
+        $this->exceptionHandlerMock->expects($this->once())
+            ->method('handle')
+            ->willThrowException($exceptionHandlerException);
+
         $this->expectOutputString('');
 
-        $handler = $this->getErrorHandlerMock();
-
-        $emergencyException = new \Exception('Emergency exception');
-        $fatalException = new \Exception('Test fatal');
-
-        $handler
-            ->expects($this->once())
-            ->method('handleFatal')
-            ->willReturnCallback(function () use ($emergencyException) {
-                throw $emergencyException;
-            })
-        ;
-
-        $handler->onException($fatalException);
+        $this->errorHandler->onUncaughtException($uncaughtException);
     }
 
-    public function testOnExceptionPrintsOnEmergencyInDebug()
+    public function testPrintsUnhandlesExceptionsWhenInDebugMode()
     {
-        $this->expectOutputRegex('~Test fatal.*Emergency exception~s');
+        $that = $this;
 
-        $handler = $this->getErrorHandlerMock();
+        $this->errorHandler->setDebug(true);
+        $this->errorHandler->setPrintUnhandledExceptionInDebug(true);
 
-        $handler->setDebug(true);
+        $exceptionHandlerException = new \Exception('Exception handler exception');
+        $uncaughtException = new \Exception('Uncaught exception');
 
-        $emergencyException = new \Exception('Emergency exception');
-        $fatalException = new \Exception('Test fatal');
+        $this->exceptionHandlerMock->expects($this->once())
+            ->method('handle')
+            ->willThrowException($exceptionHandlerException);
 
-        $handler
-            ->expects($this->once())
-            ->method('handleFatal')
-            ->willReturnCallback(function () use ($emergencyException) {
-                throw $emergencyException;
-            })
-        ;
+        $this->setOutputCallback(function ($output) use ($that) {
+            $that->assertContains('Additonal exception was thrown while trying to call ', $output);
+            $that->assertContains('Exception handler exception', $output);
+            $that->assertContains('Uncaught exception', $output);
+        });
 
-        $handler->onException($fatalException);
+        $this->errorHandler->onUncaughtException($uncaughtException);
     }
 
-    public function testOnShutdownWithNoErrors()
+    public function testShutdownWithNoErrors()
     {
-        $handler = $this->getErrorHandlerMock();
+        $this->exceptionHandlerMock->expects($this->never())
+            ->method('handle');
 
-        $handler
-            ->expects($this->never())
-            ->method('handleFatal')
-        ;
-
-        $handler->onShutdown();
+        $this->errorHandler->onShutdown();
     }
 
-    public function testOnShutdownWithSuppressedError()
+    public function testShutdownWithSuppressedError()
     {
-        $handler = $this->getErrorHandlerMock();
+        $this->exceptionHandlerMock->expects($this->never())
+            ->method('handle');
 
-        $handler
-            ->expects($this->never())
-            ->method('handleFatal')
-        ;
+        $this->simulateError();
 
-        @strlen(); // simulate error for error_get_last() to work
-
-        @$handler->onError(E_USER_ERROR, 'Something went wrong', __FILE__, __LINE__);
-
-        $handler->onShutdown();
+        @$this->errorHandler->onError(E_USER_ERROR, 'Something went wrong', __FILE__, __LINE__);
+        $this->errorHandler->onShutdown();
     }
 
-    public function testOnShutdownWithHandledError()
+    public function testShutdownWithHandledError()
     {
-        $handler = $this->getErrorHandlerMock();
+        $this->exceptionHandlerMock->expects($this->never())
+            ->method('handle');
 
-        $handler
-            ->expects($this->never())
-            ->method('handleFatal')
-        ;
-
-        @strlen(); // simulate error for error_get_last() to work
+        $this->simulateError();
 
         try {
-            $handler->onError(E_USER_ERROR, 'Something went wrong', __FILE__, __LINE__);
+            $this->errorHandler->onError(E_USER_ERROR, 'Something went wrong', __FILE__, __LINE__);
         } catch (\ErrorException $e) {
         }
 
-        $handler->onShutdown();
+        $this->errorHandler->onShutdown();
     }
 
-    public function testOnShutdownWithUnhandledError()
+    public function testShutdownWithUnhandledError()
     {
-        $handler = $this->getErrorHandlerMock();
+        $this->exceptionHandlerMock->expects($this->once())
+            ->method('handle')
+            ->with(
+                $this->isInstanceOf('ErrorException'),
+                $this->identicalTo(ErrorHandler::FATAL_ERROR)
+            );
 
-        $handler
-            ->expects($this->once())
-            ->method('handleFatal')
-        ;
+        $this->simulateError();
 
-        @strlen(); // simulate error for error_get_last() to work
-
-        $handler->onShutdown();
+        $this->errorHandler->onShutdown();
     }
 
-    public function testOnShutdownWhenActive()
+    /**
+     * @dataProvider provideOutOfMemoryErrorMessages
+     * @param string $errorMessage
+     */
+    public function testShutdownWithOutOfMemoryError($errorMessage)
     {
-        $handler = $this->getMock(__NAMESPACE__ . '\ErrorHandler', array(
-            'handleFatal',
-            'onException'
-        ));
+        $this->exceptionHandlerMock->expects($this->once())
+            ->method('handle')
+            ->with(
+                $this->isInstanceOf('ErrorException'),
+                $this->identicalTo(ErrorHandler::OUT_OF_MEMORY)
+            );
 
-        $handler
-            ->expects($this->once())
-            ->method('onException')
-        ;
+        $this->simulateError($errorMessage);
 
-        @strlen(); // simulate error for error_get_last() to work
+        $this->errorHandler->onShutdown();
+    }
 
-        set_error_handler(array($handler, 'onError'));
+    /**
+     * @return array[]
+     */
+    public function provideOutOfMemoryErrorMessages()
+    {
+        return array(
+            array('Allowed memory size of 123456 bytes exhausted at 123:456 (tried to allocate 123456 bytes)'),
+            array('Allowed memory size of %zu bytes exhausted (tried to allocate 123 bytes)'),
+            array('Out of memory'),
+            array('Out of memory (allocated 654231) at 123:456 (tried to allocate 123456 bytes)'),
+            array('Out of memory (allocated 654321) (tried to allocate 123456 bytes)'),
+        );
+    }
 
+    public function testShutdownWithErrorWhenActive()
+    {
+        $this->errorHandler->setAlwaysActive(false);
+
+        $this->exceptionHandlerMock->expects($this->once())
+            ->method('handle')
+            ->with(
+                $this->isInstanceOf('ErrorException'),
+                $this->identicalTo(ErrorHandler::FATAL_ERROR)
+            );
+
+        $this->simulateError();
+
+        set_error_handler(array($this->errorHandler, 'onError'));
+
+        $e = null;
         try {
-            $handler->onShutdown();
+            $this->errorHandler->onShutdown();
         } catch (\Exception $e) {
-            restore_error_handler();
+        } catch (\Throwable $e) {
+        }
 
+        restore_error_handler();
+
+        if (null !== $e) {
             throw $e;
         }
     }
 
-    public function testOnShutdownWhenNotActive()
+    public function testOnShutdownWithErrorWhenNotActive()
     {
-        $handler = $this->getErrorHandlerMock(true, true, false);
+        $this->errorHandler->setAlwaysActive(false);
 
-        $handler
-            ->expects($this->never())
-            ->method('onException')
-        ;
+        $this->exceptionHandlerMock->expects($this->never())
+            ->method('handle');
 
-        @strlen(); // simulate error for error_get_last() to work
+        $this->simulateError();
 
-        $handler->onShutdown();
+        $this->errorHandler->onShutdown();
     }
 
     public function testEvents()
     {
-        $handler = $this->getErrorHandlerMock();
-        $handler->setDebug(true);
+        $this->errorHandler->setDebug(true);
 
         $that = $this;
 
-        $listenerAssertionException = null;
         $callCounters = array(
             'error' => 0,
             'suppressed_error' => 0,
-            'fatal_error' => 0,
+            'exception' => 0,
         );
 
         // helper: assert listener call counts
-        $assertCallCounts = function (
-            $expectedErrorListenerCallCount,
-            $expectedSuppressedErrorListenerCallCount,
-            $expectedFatalErrorListenerCallCount
-        ) use (
-            $that,
-            &$callCounters
-        ) {
-            $that->assertSame($expectedErrorListenerCallCount, $callCounters['error'], 'expected error listener to be called n times');
-            $that->assertSame($expectedSuppressedErrorListenerCallCount, $callCounters['suppressed_error'], 'expected suppressed error listener to be called n times');
-            $that->assertSame($expectedFatalErrorListenerCallCount, $callCounters['fatal_error'], 'expected fatal error listener to be called n times');
-        };
-
-        // helper: rethrow listener assertion exception
-        $rethrowListenerAssertionException = function () use (&$listenerAssertionException) {
-            /** @var \Exception $listenerAssertionException */
-            if (null !== $listenerAssertionException) {
-                throw $listenerAssertionException;
-            }
+        $assertCallCounts = function ($errorListenerCalls, $suppressedErrorListenerCalls, $exceptionListenerCalls) use ($that, &$callCounters) {
+            $that->assertSame($errorListenerCalls, $callCounters['error'], 'expected error listener to be called n times');
+            $that->assertSame($suppressedErrorListenerCalls, $callCounters['suppressed_error'], 'expected suppressed error listener to be called n times');
+            $that->assertSame($exceptionListenerCalls, $callCounters['exception'], 'expected exception listener to be called n times');
         };
 
         // error listener
-        $errorListener = function ($exception, $debug, $suppressed) use (
-            $that,
-            &$callCounters,
-            &$listenerAssertionException
-        ) {
+        $errorListener = function ($exception, $debug, $suppressed) use ($that, &$callCounters) {
             if (!$suppressed) {
-                try {
-                    $that->assertTrue($debug);
-                    $that->assertInstanceOf('ErrorException', $exception);
-                } catch (\PHPUnit_Exception $e) {
-                    $listenerAssertionException = $e;
-                }
+                $that->scheduleAssertion('assertTrue', $debug, 'expected debug to be TRUE in error listener');
+                $that->scheduleAssertion('assertInstanceOf', 'ErrorException', $exception, 'expected an instance of ErrorException in error listener');
 
                 ++$callCounters['error'];
             }
         };
 
         // suppressed error listener
-        $suppressedErrorListener = function ($exception, $debug, $suppressed) use (
-            $that,
-            &$callCounters,
-            &$listenerAssertionException
-        ) {
+        $suppressedErrorListener = function ($exception, $debug, $suppressed) use ($that, &$callCounters) {
             if ($suppressed) {
-                try {
-                    $that->assertTrue($debug);
-                    $that->assertInstanceOf('ErrorException', $exception);
-                } catch (\PHPUnit_Exception $e) {
-                    $listenerAssertionException = $e;
-                }
+                $that->scheduleAssertion('assertTrue', $debug, 'expected debug to be TRUE in suppressed error listener');
+                $that->scheduleAssertion('assertInstanceOf', 'ErrorException', $exception, 'expected an instance of ErrorException in suppressed error listener');
 
                 ++$callCounters['suppressed_error'];
             }
         };
 
-        // fatal error listener
-        $fatalErrorListener = function (
-            $exception,
-            $debug,
-            $fatalHandler
-        ) use (
-            $that,
-            &$callCounters,
-            &$listenerAssertionException
-        ) {
-            try {
-                $that->assertTrue($debug);
-                $that->assertInstanceOf('Exception', $exception);
-                $that->assertInstanceOf(__NAMESPACE__ . '\FatalErrorHandlerInterface', $fatalHandler);
-            } catch (\PHPUnit_Exception $e) {
-                $listenerAssertionException = $e;
-            }
+        // exception error listener
+        $exceptionListener = function ($exception, $debug, $errorType) use ($that, &$callCounters) {
+            $that->scheduleAssertion('assertTrue', $debug, 'expected debug to be TRUE in exception listener');
+            $that->scheduleAssertion('assertInstanceOf', 'Exception', $exception, 'expected an instance of Exception in exception listener');
+            $that->scheduleAssertion('assertInternalType', 'integer', $errorType, 'expected error type to be an integer in exception listener');
 
-            ++$callCounters['fatal_error'];
+            ++$callCounters['exception'];
         };
 
         // attach listeners
-        $handler
+        $this->errorHandler
             ->on('error', $errorListener)
             ->on('error', $suppressedErrorListener)
-            ->on('fatal', $fatalErrorListener)
-        ;
+            ->on('exception', $exceptionListener);
 
         // test
-        $rethrowListenerAssertionException();
         $assertCallCounts(0, 0, 0);
 
         try {
-            $handler->onError(E_USER_ERROR, 'Test');
+            $this->errorHandler->onError(E_USER_ERROR, 'Test');
         } catch (\ErrorException $e) {
         }
 
-        $rethrowListenerAssertionException();
         $assertCallCounts(1, 0, 0);
 
         try {
-            @$handler->onError(E_USER_ERROR, 'Test suppressed');
+            @$this->errorHandler->onError(E_USER_ERROR, 'Test suppressed');
         } catch (\ErrorException $e) {
         }
 
-        $rethrowListenerAssertionException();
         $assertCallCounts(1, 1, 0);
 
         try {
-            $handler->onException(new \Exception('Test fatal'));
+            $this->errorHandler->onUncaughtException(new \Exception('Test uncaught'));
         } catch (\ErrorException $e) {
         }
 
-        $rethrowListenerAssertionException();
         $assertCallCounts(1, 1, 1);
     }
 
-    public function testEventSuppressRuntimeException()
+    public function testEventSuppressesErrorException()
     {
-        $handler = $this->getErrorHandlerMock();
-
-        $handler->on('error', function ($exception, $debug, &$suppressed) {
+        $this->errorHandler->on('error', function ($exception, $debug, &$suppressed) {
             $suppressed = true;
         });
 
         // no exception should be thrown
-        $handler->onError(E_USER_ERROR, 'Test');
+        $this->errorHandler->onError(E_USER_ERROR, 'Test');
     }
 
     /**
      * @expectedException        ErrorException
      * @expectedExceptionMessage Test suppressed
      */
-    public function testEventForceRuntimeException()
+    public function testEventForcesErrorException()
     {
-        $handler = $this->getErrorHandlerMock();
-
-        $handler->on('error', function ($exception, $debug, &$suppressed) {
+        $this->errorHandler->on('error', function ($exception, $debug, &$suppressed) {
             $suppressed = false;
         });
 
         // an exception should be thrown even if suppressed
-        @$handler->onError(E_USER_ERROR, 'Test suppressed');
+        @$this->errorHandler->onError(E_USER_ERROR, 'Test suppressed');
     }
 
-    public function testEventReplaceFatalHandler()
+    public function testExceptionChainingWithErrorEvent()
     {
-        $handler = $this->getErrorHandlerMock(false, false);
-        $customFatalHandler = $this->getFatalErrorHandlerMock();
+        $errorEventException = new \Exception('Event exception');
 
-        $customFatalHandler
-            ->expects($this->once())
-            ->method('handle')
-        ;
-
-        $handler->on('fatal', function ($exception, $debug, &$fatalHandler) use ($customFatalHandler) {
-            $fatalHandler = $customFatalHandler;
+        $this->errorHandler->on('error', function () use ($errorEventException) {
+            throw $errorEventException;
         });
 
-        $handler->onException(new \Exception('Test fatal'));
-    }
-
-    public function testEventDisableFatalHandler()
-    {
-        $handler = $this->getErrorHandlerMock(false, false);
-        $customFatalHandler = $this->getFatalErrorHandlerMock();
-
-        $customFatalHandler
-            ->expects($this->never())
-            ->method('handle')
-        ;
-
-        $handler->setFatalHandler($customFatalHandler);
-
-        $handler->on('fatal', function ($exception, $debug, &$fatalHandler) {
-            $fatalHandler = null;
-        });
-
-        $handler->onException(new \Exception('Test fatal'));
-    }
-
-    public function testEventExceptionChainingDuringRuntime()
-    {
-        $handler = $this->getErrorHandlerMock();
-
-        $eventException = new \Exception('Event exception');
-
-        $handler->on('error', function () use ($eventException) {
-            throw $eventException;
-        });
-
-        $runtimeException = null;
+        $thrownException = null;
         try {
-            $handler->onError(E_USER_ERROR, 'Test runtime');
-        } catch (\Exception $runtimeException) {
+            $this->errorHandler->onError(E_USER_ERROR, 'Test runtime');
+        } catch (\Exception $thrownException) {
         }
 
-        $this->assertInstanceOf('Exception', $runtimeException, 'expected onError() to throw an exception');
-        $this->assertSame($eventException, $runtimeException, 'expected event exception to replace the original error');
-        $this->assertInstanceOf('ErrorException', $runtimeException->getPrevious(), 'expected the original error to be chained to the event exception');
-        $this->assertSame('Test runtime', $runtimeException->getPrevious()->getMessage(), 'expected the correct exception to be chained');
+        $this->assertNotNull($thrownException);
+        $this->assertInstanceOf('RuntimeException', $thrownException);
+        $this->assertSame('Additional exception was thrown from an [error] event listener. See previous exceptions.', $thrownException->getMessage());
+        $this->assertSame($errorEventException, $thrownException->getPrevious());
+        $this->assertInstanceOf('ErrorException', $errorEventException->getPrevious());
+        $this->assertSame('Test runtime', $errorEventException->getPrevious()->getMessage());
     }
 
-    public function testEventExceptionChainingDuringFatal()
+    public function testExceptionChainingWithExceptionEvent()
     {
-        $handler = $this->getErrorHandlerMock();
-
-        $eventException = new \Exception('Event exception');
-        $fatalException = new \Exception('Test fatal');
-
-        $handler
-            ->expects($this->once())
-            ->method('handleFatal')
-            ->with(
-                $this->anything(),
-                $this->logicalAnd(
-                    $this->identicalTo($eventException),
-                    $this->callback(function ($eventException) use ($fatalException) {
-                        return $eventException->getPrevious() === $fatalException;
-                    })
-                )
-            )
-        ;
-
-        $handler->on('fatal', function () use ($eventException) {
-            throw $eventException;
-        });
-
-        $handler->onException($fatalException);
-    }
-
-    public function testEmergencyEvent()
-    {
-        $handler = $this->getErrorHandlerMock();
-
         $that = $this;
 
-        $emergencyException = new \Exception('Emergency exception');
-        $fatalException = new \Exception('Test fatal');
+        $uncaughtException = new \Exception('Test uncaught');
+        $exceptionEventException = new \Exception('Event exception');
 
-        $emergencyHandlerCalled = false;
+        $this->exceptionHandlerMock
+            ->expects($this->once())
+            ->method('handle')
+            ->with(
+                $this->logicalAnd(
+                    $this->isInstanceOf('RuntimeException'),
+                    $this->callback(function ($exception) use ($that, $uncaughtException, $exceptionEventException) {
+                        $that->assertSame('Additional exception was thrown from an [exception] event listener. See previous exceptions.', $exception->getMessage());
+                        $that->assertSame($exceptionEventException, $exception->getPrevious());
+                        $that->assertSame($uncaughtException, $exceptionEventException->getPrevious());
 
-        $handler->on('emerg', function ($exception) use (
-            $that,
-            $emergencyException,
-            $fatalException,
-            &$emergencyHandlerCalled
-        ) {
-            $emergencyHandlerCalled = true;
+                        return true;
+                    })
+                )
+            );
 
-            $that->assertSame($emergencyException, $exception, 'expected the emergency exception to be passed to the emergency handler');
-            $that->assertSame($fatalException, $exception->getPrevious(), 'expected the original error to be chained to the emergency exception');
+        $this->errorHandler->on('exception', function () use ($exceptionEventException) {
+            throw $exceptionEventException;
         });
 
-        $handler
+        $this->errorHandler->onUncaughtException($uncaughtException);
+    }
+
+    public function testFailureEvent()
+    {
+        $that = $this;
+
+        $uncaughtException = new \Exception('Test uncaught');
+        $exceptionHandlerException = new \Exception('Exception handler exception');
+
+        $failureListenerCalled = false;
+
+        $this->errorHandler->on('failure', function ($exception, $debug, $errorType) use (
+            $that,
+            $exceptionHandlerException,
+            $uncaughtException,
+            &$failureListenerCalled
+        ) {
+            $failureListenerCalled = true;
+
+            $that->scheduleAssertion('assertFalse', $debug, 'expected debug to be FALSE in failure listener');
+            $that->scheduleAssertion('assertSame', ErrorHandler::UNCAUGHT_EXCEPTION, $errorType, 'expected error type to be UNCAUGHT_EXCEPTION');
+            $that->scheduleAssertion('assertInstanceOf', 'RuntimeException', $exception, 'expected an instance of RuntimeException in failure listener');
+            $that->scheduleAssertion('assertRegExp', '{Additonal exception was thrown while trying to call .*\. See previous exceptions\.}', $exception->getMessage(), 'expected an exception with correct message in failure listener');
+            $that->scheduleAssertion('assertSame', $exceptionHandlerException, $exception->getPrevious(), 'expected the exception handler exception to be the previous exception in exception listener');
+            $that->scheduleAssertion('assertSame', $uncaughtException, $exception->getPrevious()->getPrevious(), 'expected the original exception to be the last exception in the chain in exception listener');
+        });
+
+        $this->exceptionHandlerMock
             ->expects($this->once())
-            ->method('handleFatal')
-            ->willReturnCallback(function () use ($emergencyException) {
-                throw $emergencyException;
-            })
-        ;
+            ->method('handle')
+            ->willThrowException($exceptionHandlerException);
 
-        $handler->onException($fatalException);
+        $this->errorHandler->onUncaughtException($uncaughtException);
 
-        $this->assertTrue($emergencyHandlerCalled, 'expected emergency handler to be called');
+        $this->assertTrue($failureListenerCalled, 'expected failure handler to be called');
     }
 
     /**
-     * @param bool $disableExceptionHandling make onException() do nothnig
-     * @param bool $disableOnFatal           make handleFatal() do nothing
-     * @param bool $alwaysActive             make isActive() always return true
-     * @return \PHPUnit_Framework_MockObject_MockObject|ErrorHandler
+     * Schedule an assertion after the test
+     *
+     * @param string $method method name
+     * @param mixed $args,...
      */
-    private function getErrorHandlerMock($disableExceptionHandling = false, $disableOnFatal = true, $alwaysActive = true)
+    public function scheduleAssertion($method)
     {
-        $methods = array();
+        $this->scheduledAssertions[] = array(
+            'method' => $method,
+            'args' => array_slice(func_get_args(), 1),
+        );
+    }
 
-        if ($alwaysActive) {
-            $methods[] = 'isActive';
+    protected function assertPostConditions()
+    {
+        foreach ($this->scheduledAssertions as $assertion) {
+            call_user_func_array(array($this, $assertion['method']), $assertion['args']);
         }
-        if ($disableExceptionHandling) {
-            $methods[] = 'onException';
-        }
-        if ($disableOnFatal) {
-            $methods[] = 'handleFatal';
-        }
-
-        $handler = $this->getMock(__NAMESPACE__ . '\ErrorHandler', $methods);
-
-        $handler->setCleanBuffers(false);
-
-        if ($alwaysActive) {
-            $handler
-                ->expects($this->any())
-                ->method('isActive')
-                ->willReturn(true)
-            ;
-        }
-
-        return $handler;
     }
 
     /**
-     * @return FatalErrorHandlerInterface
+     * Simulate an error so error_get_last() works
+     *
+     * @param string $message
+     * @param int    $type
      */
-    private function getFatalErrorHandlerMock()
+    private function simulateError($message = 'Simulated error', $type = E_USER_WARNING)
     {
-        return $this->getMock(__NAMESPACE__ . '\FatalErrorHandlerInterface');
+        @trigger_error($message, $type);
+    }
+}
+
+/**
+ * @internal
+ */
+class TestErrorHandler extends ErrorHandler
+{
+    /** @var bool */
+    private $alwaysActive = true;
+
+    /**
+     * @param bool $alwaysActive
+     */
+    public function setAlwaysActive($alwaysActive)
+    {
+        $this->alwaysActive = $alwaysActive;
+    }
+
+    protected function isActive()
+    {
+        return $this->alwaysActive || parent::isActive();
     }
 }
