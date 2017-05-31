@@ -1,7 +1,7 @@
 {
     "name": "kuria/error",
     "description": "Makes handling and debugging PHP errors suck less.",
-    "keywords": ["error", "exception", "error handler", "exception handler", "fatal", "debug", "debugger"],
+    "keywords": ["error", "exception", "error handler", "exception handler", "fatal", "debug", "debugger", "stack-trace"],
     "license": "MIT",
     "require": {
         "php": ">=5.3.0",
