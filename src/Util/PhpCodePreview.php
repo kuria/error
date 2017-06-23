@@ -29,7 +29,7 @@ class PhpCodePreview
     {
         $highlighted = @highlight_file($file, true);
 
-        if (false !== $highlighted) {
+        if ($highlighted !== false) {
             return static::render($highlighted, $activeLine, $lineRange, $className);
         }
     }
@@ -47,7 +47,7 @@ class PhpCodePreview
     {
         $code = @highlight_string($code, true);
 
-        if (false !== $code) {
+        if ($code !== false) {
             return static::render($code, $activeLine, $lineRange, $className);
         }
     }
@@ -75,8 +75,8 @@ class PhpCodePreview
         $code = null;
 
         // determine range
-        if (null !== $lineRange) {
-            if (null === $activeLine) {
+        if ($lineRange !== null) {
+            if ($activeLine === null) {
                 throw new \LogicException('Cannot render line range without specified active line');
             }
             $start = max(0, $activeLine - $lineRange - 1);
@@ -89,10 +89,10 @@ class PhpCodePreview
         // render
         $output = '<ol'
             . ($start > 0 ? ' start="' . ($start + 1) . '"' : '')
-            . (null !== $className ? ' class="' . $className . '"' : '')
+            . ($className !== null ? ' class="' . $className . '"' : '')
             . '>';
         for ($i = $start; $i <= $end; ++$i) {
-            $output .= '<li' . (null !== $activeLine && $i + 1 === $activeLine ? ' class="active"' : '') . '>'
+            $output .= '<li' . ($activeLine !== null && $i + 1 === $activeLine ? ' class="active"' : '') . '>'
                 . static::repairHighlightedLine($lines[$i])
                 . "</li>\n";
         }
@@ -113,7 +113,7 @@ class PhpCodePreview
         $closingTag = strpos($line, '</span>');
 
         // unmatched </span> at the beginning
-        if (false !== $closingTag && (false === $openingTag || $closingTag < $openingTag)) {
+        if ($closingTag !== false && ($openingTag === false || $closingTag < $openingTag)) {
             // remove it
             $line = substr_replace($line, '', $closingTag, 7);
         }

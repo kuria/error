@@ -194,7 +194,7 @@ class ErrorHandler extends EventEmitter
     {
         $this->lastError = error_get_last();
         $this->currentErrorException = new \ErrorException($message, 0, $code, $file, $line);
-        $suppressed = 0 === ($code & error_reporting());
+        $suppressed = ($code & error_reporting()) === (0);
 
         if ($this->hasListeners('error')) {
             // make sure autoloading is active before emitting an event
@@ -214,7 +214,7 @@ class ErrorHandler extends EventEmitter
                 } catch (\Exception $errorListenerException) {
                 } catch (\Throwable $errorListenerException) {
                 }
-                if (null !== $errorListenerException) {
+                if ($errorListenerException !== null) {
                     $this->currentErrorException = new \RuntimeException(
                         'Additional exception was thrown from an [error] event listener. See previous exceptions.',
                         0,
@@ -258,13 +258,13 @@ class ErrorHandler extends EventEmitter
 
         if (
             $this->isActive()
-            && null !== ($error = error_get_last())
+            && ($error = error_get_last()) !== (null)
             && $error !== $this->lastError
         ) {
             $this->lastError = null;
 
             // fix working directory
-            if (null !== $this->workingDirectory) {
+            if ($this->workingDirectory !== null) {
                 chdir($this->workingDirectory);
             }
 
@@ -319,7 +319,7 @@ class ErrorHandler extends EventEmitter
             } catch (\Throwable $exceptionListenerException) {
             }
 
-            if (null !== $exceptionListenerException) {
+            if ($exceptionListenerException !== null) {
                 $exception = new \RuntimeException(
                     'Additional exception was thrown from an [exception] event listener. See previous exceptions.',
                     0,
@@ -334,7 +334,7 @@ class ErrorHandler extends EventEmitter
         } catch (\Throwable $exceptionHandlerException) {
         }
 
-        if (null !== $exceptionHandlerException) {
+        if ($exceptionHandlerException !== null) {
             $exception = new \RuntimeException(
                 sprintf('Additonal exception was thrown while trying to call %s. See previous exceptions.', get_class($this->exceptionHandler)),
                 0,
@@ -398,8 +398,8 @@ class ErrorHandler extends EventEmitter
      */
     protected function isOutOfMemoryError(array $error)
     {
-        return 0 === strncasecmp($error['message'], 'Allowed memory size of ', 23)
-            || 0 === strncasecmp($error['message'], 'Out of memory', 13);
+        return strncasecmp($error['message'], 'Allowed memory size of ', 23) === 0
+            || strncasecmp($error['message'], 'Out of memory', 13) === 0;
     }
 
     /**
@@ -409,7 +409,7 @@ class ErrorHandler extends EventEmitter
      */
     protected function isActive()
     {
-        if (null !== $this->currentErrorException) {
+        if ($this->currentErrorException !== null) {
             return true;
         }
 

@@ -91,7 +91,7 @@ class CliErrorScreen extends EventEmitter implements ExceptionHandlerInterface
      */
     public function getOutputStream()
     {
-        if (null !== $this->outputStream) {
+        if ($this->outputStream !== null) {
             $stream = $this->outputStream;
         } elseif (defined('STDERR')) {
             $stream = STDERR;

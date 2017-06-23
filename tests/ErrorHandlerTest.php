@@ -211,7 +211,7 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
 
         restore_error_handler();
 
-        if (null !== $e) {
+        if ($e !== null) {
             throw $e;
         }
     }

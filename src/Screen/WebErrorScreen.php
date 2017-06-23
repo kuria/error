@@ -133,7 +133,7 @@ class WebErrorScreen extends EventEmitter implements ExceptionHandlerInterface
 </div>\n
 HTML;
 
-        if ('' !== $extras) {
+        if ($extras !== '') {
             $output .= "\n" . $extras;
         }
 
@@ -166,7 +166,7 @@ HTML;
         for ($i = 0; $i < $totalExceptions; ++$i) {
             $output .= $this->renderException($chain[$i], $i, $totalExceptions);
 
-            if (0 === $i) {
+            if ($i === 0) {
                 // render extras after the first exception
                 $output .= $extras;
                 $output .= $this->renderOutputBuffer($outputBuffer);
@@ -212,7 +212,7 @@ HTML;
 
     </div>
 
-<?php if ('' !== $js): ?>
+<?php if ($js !== ''): ?>
 <script type="text/javascript">
 <?php echo $js ?>
 </script>
@@ -463,7 +463,7 @@ var Kuria;
     protected function renderException($exception, $index, $total)
     {
         $trace = $exception->getTrace();
-        $isMain = 0 === $index;
+        $isMain = $index === 0;
         $number = $index + 1;
 
         $title = Error::getExceptionName($exception);
@@ -484,7 +484,7 @@ HTML;
 
         // code preview
         $codePreview = $this->renderCodePreview($exception->getFile(), $exception->getLine(), $isMain ? 5 : 3);
-        if (null !== $codePreview) {
+        if ($codePreview !== null) {
             $html .= "\n<div class=\"section\">{$codePreview}</div>\n";
             $codePreview = null;
         }
@@ -523,7 +523,7 @@ HTML;
             // call
             if (isset($frame['type'], $frame['class'])) {
                 $call = "{$frame['class']}{$frame['type']}";
-                if ('onError' === $frame['function'] && is_a($frame['class'], 'Kuria\Error\ErrorHandler', true)) {
+                if ($frame['function'] === 'onError' && is_a($frame['class'], 'Kuria\Error\ErrorHandler', true)) {
                     $renderExtras = false;
                 }
             } else {
@@ -612,7 +612,7 @@ HTML;
      */
     protected function renderOutputBuffer($outputBuffer)
     {
-        if (null === $outputBuffer || '' === $outputBuffer) {
+        if ($outputBuffer === null || $outputBuffer === '') {
             return '';
         }
 
@@ -623,7 +623,7 @@ HTML;
         if (strlen($outputBuffer) > $this->maxOutputBufferLength) {
             $message = 'The output buffer is too big to display.';
             $show = false;
-        } elseif (0 !== preg_match('{[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F]}', $outputBuffer)) {
+        } elseif (preg_match('{[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F]}', $outputBuffer) !== 0) {
             $message = 'The output buffer contains unprintable characters. See HEX dump below.';
             $outputBuffer = Dumper::dumpStringAsHex($outputBuffer);
             $enableShowAsHtml = false;
@@ -639,7 +639,7 @@ HTML;
     <div class=\"section\">
         <h2 class=\"toggle-control closed\" onclick=\"Kuria.Error.WebErrorScreen.toggle('{$wrapperId}', this)\">Output buffer <em>(" . strlen($outputBuffer) . ")</em></h2>
         <div id=\"{$wrapperId}\" class=\"hidden\">"
-        . (null === $message ? '' : "<p>{$message}</p>\n")
+        . ($message === null ? '' : "<p>{$message}</p>\n")
         . ($show ? "<textarea readonly id=\"{$textareaId}\" rows=\"10\" cols=\"80\">" . $this->escape($outputBuffer) . "</textarea>\n" : '')
         . ($show && $enableShowAsHtml ? "<p><a href=\"#\" onclick=\"Kuria.Error.WebErrorScreen.showTextareaAsHtml('{$textareaId}', this); return false;\">Show as HTML</a></p>\n" : '')
         . "</div>\n</div>\n</div>\n";
