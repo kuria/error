@@ -282,7 +282,7 @@ Altering the error screens
 
 .. NOTE::
 
-  Examples are for the ``WebErrorScreen``.
+   Examples are for the ``WebErrorScreen``.
 
 
 Changing default labels in production mode:
