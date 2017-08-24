@@ -1,67 +1,48 @@
-<?php
+<?php declare(strict_types=1);
 
-namespace Kuria\Error\Util;
+namespace Kuria\Error\Screen\Util;
 
 /**
  * PHP code preview utility
- *
- * @author ShiraNai7 <shira.cz>
  */
-class PhpCodePreview
+abstract class PhpCodePreview
 {
-    /**
-     * This is a static class
-     */
-    private function __construct()
-    {
-    }
-
     /**
      * Preview code from a PHP file
      *
-     * @param string   $file       file path
-     * @param int|null $activeLine active line number
-     * @param int|null $lineRange  range of lines to render (around active line)
-     * @param string   $className  wrapper class name
-     * @return string|null
+     * Returns NULL on failure.
      */
-    public static function file($file, $activeLine = null, $lineRange = null, $className = 'code-preview')
+    static function file(string $file, ?int $activeLine = null, ?int $lineRange = null, string $className = 'code-preview'): ?string
     {
         $highlighted = @highlight_file($file, true);
 
         if ($highlighted !== false) {
-            return static::render($highlighted, $activeLine, $lineRange, $className);
+            return static::process($highlighted, $activeLine, $lineRange, $className);
         }
+
+        return null;
     }
 
     /**
      * Preview code from a string containing PHP code
      *
-     * @param string   $code       php code
-     * @param int|null $activeLine active line number
-     * @param int|null $lineRange  range of lines to render (around active line)
-     * @param string   $className  wrapper class name
-     * @return string|null
+     * Returns NULL on failure.
      */
-    public static function code($code, $activeLine = null, $lineRange = null, $className = 'code-preview')
+    static function code(string $phpCode, ?int $activeLine = null, ?int $lineRange = null, string $className = 'code-preview'): ?string
     {
-        $code = @highlight_string($code, true);
+        $phpCode = @highlight_string($phpCode, true);
 
-        if ($code !== false) {
-            return static::render($code, $activeLine, $lineRange, $className);
+        if ($phpCode !== false) {
+            return static::process($phpCode, $activeLine, $lineRange, $className);
         }
+
+        return null;
     }
 
     /**
-     * Render code preview
-     *
-     * @param string   $code
-     * @param int|null $activeLine
-     * @param int|null $lineRange
-     * @param string   $className
-     * @return string|null
+     * Process highlighted PHP code (html)
      */
-    protected static function render($code, $activeLine, $lineRange, $className)
+    protected static function process(string $html, ?int $activeLine, ?int $lineRange, string $className): string
     {
         // process highlighted code
         $lines = explode(
@@ -69,10 +50,10 @@ class PhpCodePreview
             preg_replace(
                 '~^<code[^>]*?>\s*<span[^>]*?>(.*)</span>\s*</code>$~s',
                 '$1',
-                $code
+                $html
             )
         );
-        $code = null;
+        $html = null;
 
         // determine range
         if ($lineRange !== null) {
@@ -102,12 +83,9 @@ class PhpCodePreview
     }
 
     /**
-     * Repair a single line from highlight_file/string()
-     *
-     * @param string $line
-     * @return string
+     * Repair a single line from highlight_file() or highlight_string()
      */
-    protected static function repairHighlightedLine($line)
+    protected static function repairHighlightedLine(string $line): string
     {
         $openingTag = strpos($line, '<span');
         $closingTag = strpos($line, '</span>');

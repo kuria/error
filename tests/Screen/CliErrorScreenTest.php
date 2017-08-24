@@ -1,12 +1,12 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Kuria\Error\Screen;
 
-use Kuria\Error\ErrorHandler;
+use PHPUnit\Framework\TestCase;
 
-class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
+class CliErrorScreenTest extends TestCase
 {
-    public function testRender()
+    function testRender()
     {
         $screen = new CliErrorScreen();
 
@@ -17,16 +17,15 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('Test exception', $output);
     }
 
-    public function testRenderEvent()
+    function testRenderEvent()
     {
-        $that = $this;
         $handlerCalled = false;
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render', function ($event) use ($that, &$handlerCalled) {
-            $that->assertFalse($handlerCalled);
-            $that->assertRenderEvent($event);
+        $screen->on(CliErrorScreenEvents::RENDER, function ($event) use (&$handlerCalled) {
+            $this->assertFalse($handlerCalled);
+            $this->assertRenderEvent($event);
 
             $event['title'] = 'Lorem ipsum';
             $event['output'] .= "\n\nDolor sit amet";
@@ -44,16 +43,15 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    public function testRenderEventCustomOutput()
+    function testRenderEventCustomOutput()
     {
-        $that = $this;
         $handlerCalled = false;
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render', function ($event) use ($that, &$handlerCalled) {
-            $that->assertFalse($handlerCalled);
-            $that->assertRenderEvent($event);
+        $screen->on(CliErrorScreenEvents::RENDER, function ($event) use ( &$handlerCalled) {
+            $this->assertFalse($handlerCalled);
+            $this->assertRenderEvent($event);
 
             $event['title'] = 'Lorem ipsum';
             $event['output'] = 'Dolor sit amet';
@@ -71,7 +69,7 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    public function testDebugRender()
+    function testDebugRender()
     {
         $screen = new CliErrorScreen();
 
@@ -81,16 +79,15 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Test exception', $output);
     }
 
-    public function testDebugRenderEvent()
+    function testDebugRenderEvent()
     {
-        $that = $this;
         $handlerCalled = false;
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render.debug', function ($event) use ($that, &$handlerCalled) {
-            $that->assertFalse($handlerCalled);
-            $that->assertRenderEvent($event);
+        $screen->on(CliErrorScreenEvents::RENDER_DEBUG, function ($event) use (&$handlerCalled) {
+            $this->assertFalse($handlerCalled);
+            $this->assertRenderEvent($event);
 
             $event['title'] = 'Lorem ipsum';
             $event['output'] .= "\n\nDolor sit amet";
@@ -107,16 +104,15 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    public function testDebugRenderEventCustomOutput()
+    function testDebugRenderEventCustomOutput()
     {
-        $that = $this;
         $handlerCalled = false;
 
         $screen = new CliErrorScreen();
 
-        $screen->on('render.debug', function ($event) use ($that, &$handlerCalled) {
-            $that->assertFalse($handlerCalled);
-            $that->assertRenderEvent($event);
+        $screen->on(CliErrorScreenEvents::RENDER_DEBUG, function ($event) use (&$handlerCalled) {
+            $this->assertFalse($handlerCalled);
+            $this->assertRenderEvent($event);
 
             $event['title'] = 'Lorem ipsum';
             $event['output'] = 'Dolor sit amet';
@@ -133,10 +129,7 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    /**
-     * @param array $event
-     */
-    public function assertRenderEvent($event)
+    function assertRenderEvent($event): void
     {
         $this->assertInternalType('array', $event);
         $this->assertArrayHasKey('title', $event);
@@ -150,14 +143,7 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('foo bar', $event['output_buffer']);
     }
 
-    /**
-     * @param CliErrorScreen $screen
-     * @param object         $exception
-     * @param bool           $debug
-     * @param string|null    $outputBuffer
-     * @return string
-     */
-    private function doRender(CliErrorScreen $screen, $exception, $debug, $outputBuffer = 'foo bar')
+    private function doRender(CliErrorScreen $screen, \Throwable $exception, bool $debug, ?string $outputBuffer = 'foo bar'): string
     {
         $outputStream = fopen('php://memory', 'r+');
 
@@ -165,7 +151,7 @@ class CliErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $this->assertSame($outputStream, $screen->getOutputStream());
 
-        $screen->handle($exception, ErrorHandler::UNCAUGHT_EXCEPTION, $debug, $outputBuffer);
+        $screen->render($exception, $debug, $outputBuffer);
 
         $output = stream_get_contents($outputStream, -1, 0);
         fclose($outputStream);

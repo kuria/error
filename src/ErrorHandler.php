@@ -1,42 +1,33 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Kuria\Error;
 
 use Kuria\Debug\Error;
 use Kuria\Debug\Output;
+use Kuria\Error\Exception\ChainedException;
+use Kuria\Error\Exception\ErrorException;
+use Kuria\Error\Exception\FatalErrorException;
+use Kuria\Error\Exception\OutOfMemoryException;
 use Kuria\Error\Screen\CliErrorScreen;
 use Kuria\Error\Screen\WebErrorScreen;
-use Kuria\Event\EventEmitter;
+use Kuria\Event\Observable;
 
 /**
- * Error handler
- *
- * @emits error(\ErrorException $exception, bool $debug, bool &suppressed)
- * @emits exception(\Throwable $exception, bool $debug, int $errorType)
- * @emits failure(\Throwable $exception, bool $debug, int $errorType)
- *
- * @author ShiraNai7 <shira.cz>
+ * @see ErrorHandlerEvents
  */
-class ErrorHandler extends EventEmitter
+class ErrorHandler extends Observable
 {
-    /** Error type - fatal error */
-    const FATAL_ERROR = 0;
-    /** Error type - uncaught exception */
-    const UNCAUGHT_EXCEPTION = 1;
-    /** Error type - out of memory */
-    const OUT_OF_MEMORY = 2;
-
     /** @var bool */
     protected $debug = false;
     /** @var bool */
     protected $printUnhandledExceptionInDebug = true;
     /** @var string|null */
     protected $workingDirectory;
-    /** @var ExceptionHandlerInterface */
-    protected $exceptionHandler;
+    /** @var ErrorScreenInterface */
+    protected $errorScreen;
     /** @var bool */
     protected $cleanBuffers = true;
-    /** @var \Throwable|\Exception|null */
+    /** @var ErrorException|null */
     protected $currentErrorException;
     /** @var array|null */
     protected $lastError;
@@ -49,25 +40,20 @@ class ErrorHandler extends EventEmitter
     /** @var string|null */
     protected $reservedMemory;
 
-    /**
-     * @param ExceptionHandlerInterface|null $exceptionHandler exception handle instance or null to use the default
-     * @param int                            $reserveMemory   reserve this many bytes to be able to handle out-of-memory errors (0 = disable)
-     */
-    public function __construct(ExceptionHandlerInterface $exceptionHandler = null, $reserveMemory = 10240)
+    function __construct(?ErrorScreenInterface $errorScreen = null, $reservedMemoryBytes = 10240)
     {
-        $this->exceptionHandler = $exceptionHandler ?: $this->getDefaultExceptionHandler();
-        $this->reservedMemory = $reserveMemory > 0 ? str_repeat('.', $reserveMemory) : null;
+        $this->errorScreen = $errorScreen ?? $this->getDefaultErrorScreen();
+        $this->reservedMemory = $reservedMemoryBytes > 0 ? str_repeat('.', $reservedMemoryBytes) : null;
         $this->workingDirectory = getcwd();
+
+        class_exists(OutOfMemoryException::class); // preload
     }
 
-    /**
-     * Register the error handler
-     */
-    public function register()
+    function register(): void
     {
         if (!$this->registered) {
-            set_error_handler(array($this, 'onError'));
-            set_exception_handler(array($this, 'onUncaughtException'));
+            set_error_handler([$this, 'onError']);
+            set_exception_handler([$this, 'onUncaughtException']);
 
             $this->previousDisplayErrorsSetting = ini_get('display_errors');
             ini_set('display_errors', '0');
@@ -75,7 +61,7 @@ class ErrorHandler extends EventEmitter
             $this->registered = true;
 
             if (!$this->shutdownHandlerRegistered) {
-                register_shutdown_function(array($this, 'onShutdown'));
+                register_shutdown_function([$this, 'onShutdown']);
                 $this->shutdownHandlerRegistered = true;
             }
 
@@ -85,10 +71,7 @@ class ErrorHandler extends EventEmitter
         }
     }
 
-    /**
-     * Unregister the error handler
-     */
-    public function unregister()
+    function unregister(): void
     {
         if ($this->registered) {
             set_error_handler(null);
@@ -100,252 +83,124 @@ class ErrorHandler extends EventEmitter
         }
     }
 
-    /**
-     * @return bool
-     */
-    public function getDebug()
+    function isDebugEnabled(): bool
     {
         return $this->debug;
     }
 
-    /**
-     * @param bool $debug
-     * @return static
-     */
-    public function setDebug($debug)
+    function setDebug(bool $debug): void
     {
         $this->debug = $debug;
-
-        return $this;
     }
 
     /**
-     * @param bool $printUnhandledExceptionInDebug
-     * @return static
+     * Set whether unhandled exceptions should be printed to the screen in debug mode
+     *
+     * Unhandled exceptions can occur when an additional exception is thrown from
+     * an event listener or the error screen implementation.
      */
-    public function setPrintUnhandledExceptionInDebug($printUnhandledExceptionInDebug)
+    function setPrintUnhandledExceptionInDebug(bool $printUnhandledExceptionInDebug): void
     {
         $this->printUnhandledExceptionInDebug = $printUnhandledExceptionInDebug;
-
-        return $this;
     }
 
     /**
      * Set working directory to use when handling fatal errors
      *
-     * This is useful because some SAPIs may change the working directory inside shutdown functions.
-     *
-     * Set to NULL to keep the working directory unchanged (not recommended).
-     *
-     * @param string|null $workingDirectory
-     * @return static
+     * - this is useful because some SAPIs may change the working directory inside shutdown functions
+     * - set to NULL to keep the working directory unchanged (not recommended)
      */
-    public function setWorkingDirectory($workingDirectory)
+    function setWorkingDirectory(?string $workingDirectory): void
     {
         $this->workingDirectory = $workingDirectory;
-
-        return $this;
     }
 
-    /**
-     * Get the exception handler
-     *
-     * @return ExceptionHandlerInterface
-     */
-    public function getExceptionHandler()
+    function getErrorScreen(): ErrorScreenInterface
     {
-        return $this->exceptionHandler;
+        return $this->errorScreen;
     }
 
-    /**
-     * @param ExceptionHandlerInterface $exceptionHandler
-     * @return static
-     */
-    public function setExceptionHandler(ExceptionHandlerInterface $exceptionHandler)
+    function setErrorScreen(ErrorScreenInterface $errorScreen): void
     {
-        $this->exceptionHandler = $exceptionHandler;
-
-        return $this;
+        $this->errorScreen = $errorScreen;
     }
 
     /**
-     * Set whether output buffers should be cleaned before the exception handler is called
-     *
-     * @param bool $cleanBuffers
-     * @return static
+     * Set whether output buffers should be cleaned before the error screen is invoked
      */
-    public function setCleanBuffers($cleanBuffers)
+    function setCleanBuffers(bool $cleanBuffers): void
     {
         $this->cleanBuffers = $cleanBuffers;
-
-        return $this;
     }
 
     /**
      * Handle a PHP error
      *
-     * @param int         $code    error code
-     * @param string      $message message
-     * @param string|null $file    file name
-     * @param int|null    $line    line number
-     * @return bool
+     * @throws ErrorException if the error isn't suppressed
+     * @throws ChainedException if an event listener throws an exception
      */
-    public function onError($code, $message, $file = null, $line = null)
+    function onError(int $code, string $message, ?string $file = null, ?int $line = null): bool
     {
         $this->lastError = error_get_last();
-        $this->currentErrorException = new \ErrorException($message, 0, $code, $file, $line);
-        $suppressed = ($code & error_reporting()) === (0);
+        $this->currentErrorException = new ErrorException(
+            $message,
+            $code,
+            ($code & error_reporting()) === 0,
+            $file ?? __FILE__,
+            $line ?? __LINE__
+        );
 
-        if ($this->hasListeners('error')) {
-            // make sure autoloading is active before emitting an event
-            // (autoloading is inactive in some PHP versions during "compile-time errors")
-            // (the bug appears to have been fixed in PHP 5.4.21+, 5.5.5+ and 5.6.0+)
-            // https://bugs.php.net/42098
-            if (
-                PHP_MAJOR_VERSION > 5 // PHP 7+
-                || PHP_MINOR_VERSION >= 6 // PHP 5.6+
-                || PHP_MINOR_VERSION === 5 && PHP_RELEASE_VERSION >= 5 // PHP 5.5.5+
-                || PHP_MINOR_VERSION === 4 && PHP_RELEASE_VERSION >= 21 // PHP 5.4.21+
-                || $this->isAutoloadingActive()
-            ) {
-                $errorListenerException = null;
-                try {
-                    $this->emitArray('error', array($this->currentErrorException, $this->debug, &$suppressed));
-                } catch (\Exception $errorListenerException) {
-                } catch (\Throwable $errorListenerException) {
-                }
-                if ($errorListenerException !== null) {
-                    $this->currentErrorException = new \RuntimeException(
-                        'Additional exception was thrown from an [error] event listener. See previous exceptions.',
-                        0,
-                        Error::joinExceptionChains($this->currentErrorException, $errorListenerException)
-                    );
-                    $suppressed = false;
-                }
+        try {
+            try {
+                $this->emit(ErrorHandlerEvents::ERROR, $this->currentErrorException, $this->debug);
+            } catch (\Throwable $e) {
+                throw new ChainedException(
+                    'Additional exception was thrown from an [error] event listener. See previous exceptions.',
+                    0,
+                    Error::joinExceptionChains($this->currentErrorException, $e)
+                );
             }
-        }
 
-        if (!$suppressed) {
-            $error = $this->currentErrorException;
+            // check suppression state
+            if (!$this->currentErrorException->isSuppressed()) {
+                throw $this->currentErrorException;
+            }
+
+            // suppressed error
+            return true;
+        } finally {
             $this->currentErrorException = null;
-
-            throw $error;
         }
-
-        // suppressed error
-        return true;
     }
 
     /**
      * Handle an uncaught exception
-     *
-     * @param \Throwable|\Exception $exception
      */
-    public function onUncaughtException($exception)
+    function onUncaughtException(\Throwable $exception): void
     {
-        $this->handleException($exception, static::UNCAUGHT_EXCEPTION);
-    }
-
-    /**
-     * Check for a fatal error on shutdown
-     *
-     * @internal
-     */
-    public function onShutdown()
-    {
-        // free the reserved memory
-        $this->reservedMemory = null;
-
-        if (
-            $this->isActive()
-            && ($error = error_get_last()) !== (null)
-            && $error !== $this->lastError
-        ) {
-            $this->lastError = null;
-
-            // fix working directory
-            if ($this->workingDirectory !== null) {
-                chdir($this->workingDirectory);
-            }
-
-            // determine error type
-            if ($this->isOutOfMemoryError($error)) {
-                $errorType = static::OUT_OF_MEMORY;
-                gc_collect_cycles();
-            } else {
-                $errorType = static::FATAL_ERROR;
-            }
-
-            // handle
-            $this->handleException(
-                new \ErrorException(
-                    $error['message'],
-                    0,
-                    $error['type'],
-                    $error['file'],
-                    $error['line'],
-                    $this->currentErrorException // use current error exception if a fatal error happens during onError()
-                ),
-                $errorType
-            );
-        }
-    }
-
-    /**
-     * Get the default exception handler
-     *
-     * @return ExceptionHandlerInterface
-     */
-    protected function getDefaultExceptionHandler()
-    {
-        return $this->isCli() ? new CliErrorScreen() : new WebErrorScreen();
-    }
-
-    /**
-     * Handle an exception
-     *
-     * @param \Throwable|\Exception $exception
-     * @param int                   $errorType
-     */
-    protected function handleException($exception, $errorType)
-    {
-        $exceptionHandlerException = null;
         try {
             // handle the exception
-            $exceptionListenerException = null;
             try {
-                $this->emit('exception', $exception, $this->debug, $errorType);
-            } catch (\Exception $exceptionListenerException) {
-            } catch (\Throwable $exceptionListenerException) {
-            }
-
-            if ($exceptionListenerException !== null) {
-                $exception = new \RuntimeException(
+                $this->emit(ErrorHandlerEvents::EXCEPTION, $exception, $this->debug);
+            } catch (\Throwable $e) {
+                $exception = new ChainedException(
                     'Additional exception was thrown from an [exception] event listener. See previous exceptions.',
                     0,
-                    Error::joinExceptionChains($exception, $exceptionListenerException)
+                    Error::joinExceptionChains($exception, $e)
                 );
             }
 
-            $this->callExceptionHandler($exception, $errorType);
+            $this->invokeErrorScreen($exception);
 
             return;
-        } catch (\Exception $exceptionHandlerException) {
-        } catch (\Throwable $exceptionHandlerException) {
-        }
-
-        if ($exceptionHandlerException !== null) {
-            $exception = new \RuntimeException(
-                sprintf('Additonal exception was thrown while trying to call %s. See previous exceptions.', get_class($this->exceptionHandler)),
+        } catch (\Throwable $e) {
+            $exception = new ChainedException(
+                sprintf('Additional exception was thrown while trying to invoke %s. See previous exceptions.', get_class($this->errorScreen)),
                 0,
-                Error::joinExceptionChains($exception, $exceptionHandlerException)
+                Error::joinExceptionChains($exception, $e)
             );
 
-            if ($this->hasListeners('failure')) {
-                $this->emit('failure', $exception, $this->debug, $errorType);
-
-                return;
-            }
+            $this->emit(ErrorHandlerEvents::FAILURE, $exception, $this->debug);
         }
 
         // unhandled exception
@@ -355,92 +210,103 @@ class ErrorHandler extends EventEmitter
     }
 
     /**
-     * Call the registered exception handler
+     * Check for a fatal error on shutdown
      *
-     * @param \Throwable|\Exception $exception
-     * @param int                   $errorType
+     * @internal
      */
-    protected function callExceptionHandler($exception, $errorType)
+    function onShutdown(): void
+    {
+        // free the reserved memory
+        $this->reservedMemory = null;
+
+        if (
+            $this->isActive()
+            && ($error = error_get_last()) !== null
+            && $error !== $this->lastError
+        ) {
+            $this->lastError = null;
+
+            // fix working directory
+            if ($this->workingDirectory !== null) {
+                chdir($this->workingDirectory);
+            }
+
+            // determine exception class
+            if ($this->isOutOfMemoryError($error)) {
+                gc_collect_cycles();
+                $exceptionClass = OutOfMemoryException::class;
+            } else {
+                $exceptionClass = FatalErrorException::class;
+            }
+
+            // handle
+            $this->onUncaughtException(
+                new $exceptionClass(
+                    $error['message'],
+                    0,
+                    $error['type'],
+                    $error['file'],
+                    $error['line'],
+                    $this->currentErrorException // use current error exception if a fatal error happens during onError()
+                )
+            );
+        }
+    }
+
+    protected function getDefaultErrorScreen(): ErrorScreenInterface
+    {
+        return $this->isCli() ? new CliErrorScreen() : new WebErrorScreen();
+    }
+
+    protected function invokeErrorScreen(\Throwable $exception): void
     {
         // replace headers
         if (!$this->isCli()) {
-            Output::replaceHeaders(array('HTTP/1.1 500 Internal Server Error'));
+            Output::replaceHeaders(['HTTP/1.1 500 Internal Server Error']);
         }
 
         // clean output buffers
         $outputBuffer = null;
+
         if ($this->cleanBuffers) {
             // capture output buffers unless out of memory
-            if (static::OUT_OF_MEMORY !== $errorType) {
-                $outputBuffer = Output::cleanBuffers(null, true, true);
+            if (!$exception instanceof OutOfMemoryException) {
+                $outputBuffer = Output::captureBuffers(null, true);
             } else {
-                Output::cleanBuffers(null, false, true);
+                Output::cleanBuffers(null, true);
             }
         }
 
-        // handle
-        $this->exceptionHandler->handle($exception, $errorType, $this->debug, $outputBuffer);
+        // render
+        $this->errorScreen->render($exception, $this->debug, $outputBuffer);
     }
 
-    /**
-     * Detect CLI environment
-     *
-     * @return bool
-     */
-    protected function isCli()
+    protected function isCli(): bool
     {
         return 'cli' === PHP_SAPI;
     }
 
-    /**
-     * @param array $error
-     * @return bool
-     */
-    protected function isOutOfMemoryError(array $error)
+    protected function isOutOfMemoryError(array $error): bool
     {
-        return strncasecmp($error['message'], 'Allowed memory size of ', 23) === 0
-            || strncasecmp($error['message'], 'Out of memory', 13) === 0;
+        return $error['type'] === E_ERROR && (
+            strncasecmp($error['message'], 'Allowed memory size of ', 23) === 0
+            || strncasecmp($error['message'], 'Out of memory', 13) === 0
+        );
     }
 
     /**
      * See if this is the current error handler
-     *
-     * @return bool
      */
-    protected function isActive()
+    protected function isActive(): bool
     {
         if ($this->currentErrorException !== null) {
             return true;
         }
 
-        // ugly, but there is no get_error_handler()..
+        // ugly, but there is no get_error_handler()
         $currentErrorHandler = set_error_handler(function () {});
         restore_error_handler();
 
         return is_array($currentErrorHandler) && $currentErrorHandler[0] === $this;
-    }
-
-    /**
-     * Try to detect whether autoloading is currently active
-     *
-     * @return bool
-     */
-    protected function isAutoloadingActive()
-    {
-        $testClass = 'Kuria\Error\__Internal__\Nonexistent_Class';
-
-        $autoloadingActive = false;
-        $autoloadChecker = function ($class) use (&$autoloadingActive, $testClass) {
-            if ($class === $testClass) {
-                $autoloadingActive = true;
-            }
-        };
-
-        if (spl_autoload_register($autoloadChecker, false, true)) {
-            class_exists($testClass);
-        }
-        spl_autoload_unregister($autoloadChecker);
-
-        return $autoloadingActive;
     }
 }

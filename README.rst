@@ -23,11 +23,8 @@ Features
   - CLI error screen writes errors to stderr
   - web error screen renders errors for web browsers
 
-    - | production mode does not disclose any internal information:
+    - | non-debug mode shows a generic error message:
       | |Web error screen in non-debug mode|
-
-      - simple error message
-
 
     - | debug mode shows all available info:
       | |Web error screen in debug mode|
@@ -49,7 +46,7 @@ Features
 Requirements
 ************
 
--  PHP 5.3.0+ or 7.0.0+
+- PHP 7.1+
 
 
 Usage example
@@ -62,7 +59,7 @@ Usage example
    use Kuria\Error\ErrorHandler;
 
    $debug = true; // true during development, false in production
-   error_reporting(E_ALL | E_STRICT); // configure the error reporting
+   error_reporting(E_ALL); // configure the error reporting
 
    $errorHandler = new ErrorHandler();
    $errorHandler->setDebug($debug);
@@ -75,166 +72,157 @@ Usage example
 Event system
 ************
 
--  implemented using the `kuria/event <https://github.com/kuria/event>`_ library
--  the error handler fires events as it handles errors
--  both built-in error screen implementations emit events as they render
+- implemented using the `kuria/event <https://github.com/kuria/event>`_ library
+- the error handler fires events as it handles errors
+- both built-in error screen implementations emit events as they render
 
 
 Error handler events
 ====================
 
-Possible events emitted by the ``ErrorHandler`` class:
+Possible events emitted by the ``ErrorHandler`` class are listed in ``ErrorHandlerEvents``:
 
 
-``error``
----------
+``ErrorHandlerEvents::ERROR``
+-----------------------------
 
--  emitted when a PHP errors occurs
--  arguments:
+Emitted when a PHP errors occurs.
 
-   1. ``ErrorException $exception``
-   2. ``bool $debug``
-   3. ``bool &$suppressed``
+Arguments:
 
-      - reference to the suppression state of the error
-      - changing the value can force or prevent the suppression
-      - an error may be suppressed by PHP's ``error_reporting`` setting
-        or by other listenrs
+1. ``Kuria\Error\Exception\ErrorException $exception``
+
+   - you may use the ``suppress()`` or ``force()`` method to suppress or force
+     the exception, respectivelly, regardless of the ``error_reporting`` PHP setting
+
+2. ``bool $debug``
 
 
-``exception``
--------------
+``ErrorHandlerEvents::EXCEPTION``
+---------------------------------
 
--  emitted when an uncaught exception or a fatal error is being handled
--  arguments:
+Emitted when an uncaught exception or a fatal error is being handled.
 
-   1. ``object $exception``
-   2. ``bool $debug``
-   3. ``int $errorType``
+Arguments:
 
-      - ``ErrorHandler::FATAL_ERROR``
-      - ``ErrorHandler::UNCAUGHT_EXCEPTION``
-      - ``ErrorHandler::OUT_OF_MEMORY``
+1. ``Throwable $exception``
+2. ``bool $debug``
 
 .. WARNING::
 
    Avoid performing memory-intensive tasks in listeners of this event if
-   ``$errorType`` is ``ErrorHandler::OUT_OF_MEMORY``.
+   ``$exception`` is an instance of ``Kuria\Error\Exception\OutOfMemoryException``.
 
 
-``failure``
------------
+``ErrorHandlerEvents::FAILURE``
+-------------------------------
 
-- emitted when an uncaught exception or a fatal error could not be handled
-- this can happen when an ``exception`` event listener or the registered
-  exception handler causes an additional exception
-- throwing another exception or causing a fatal error at this point will
-  just kill the script
-- arguments:
+Emitted when an uncaught exception or a fatal error could not be handled. This can happen
+when an ``exception`` event listener or the registered error screen throws an additional
+exception. Throwing another exception or causing a fatal error at this point will just
+kill the script.
 
-  1. ``object $exception``
-  2. ``bool $debug``
-  3. ``int $errorType``
+Arguments:
 
-     - ``ErrorHandler::FATAL_ERROR``
-     - ``ErrorHandler::UNCAUGHT_EXCEPTION``
-     - ``ErrorHandler::OUT_OF_MEMORY``
+1. ``Throwable $exception``
+2. ``bool $debug``
 
 .. WARNING::
 
    Avoid performing memory-intensive tasks in listeners of this event if
-   ``$errorType`` is ``ErrorHandler::OUT_OF_MEMORY``.
+   ``$exception`` is an instance of ``Kuria\Error\Exception\OutOfMemoryException``.
 
 
 Web error screen events
 =======================
 
-Possible events emitted by the ``WebErrorScreen`` class:
+Possible events emitted by the ``WebErrorScreen`` class are listed in ``WebErrorScreenEvents``:
 
 
-``render``
-----------
+``WebErrorScreenEvents::RENDER``
+--------------------------------
 
--  emitted when rendering in **production mode**
--  single argument - an event array with the following keys:
+Emitted when rendering in non-debug.
 
-   -  ``&title``: used in ``<title>``
-   -  ``&heading``: used in ``<h1>``
-   -  ``&text``: content of the default paragraph
-   -  ``&extras``: custom HTML after the main section
-   -  ``exception``: the exception
-   -  ``output_buffer``: string\|null
+Receives an array with the following keys:
 
-
-``render.debug``
-----------------
-
--  emitted when rendering in **debug mode**
--  single argument - an event array with the following keys:
-
-   -  ``&title``: used in ``<title>``
-   -  ``&extras``: custom HTML after the main section
-   -  ``exception``: the exception
-   -  ``output_buffer``: string\|null
+- ``&title``: used in ``<title>``
+- ``&heading``: used in ``<h1>``
+- ``&text``: content of the default paragraph
+- ``&extras``: custom HTML after the main section
+- ``exception``: the exception
+- ``output_buffer``: string\|null
 
 
-``layout.css``
---------------
+``WebErrorScreenEvents::RENDER_DEBUG``
+--------------------------------------
 
--  emitted when CSS styles are being output
--  single argument - an event array with the following keys:
+Emitted when rendering in debug mode.
 
-   -  ``&css``: the CSS output
-   -  ``debug``: boolean
+Receives an array with the following keys:
+
+- ``&title``: used in ``<title>``
+- ``&extras``: custom HTML after the main section
+- ``exception``: the exception
+- ``output_buffer``: string\|null
 
 
-``layout.js``
--------------
+``WebErrorScreenEvents::LAYOUT_CSS``
+------------------------------------
 
--  emitted when JavaScript code is being output
--  single argument - an event array with the following keys:
+Emitted when CSS styles are being output.
 
-   -  ``&js``: the JS output
-   -  ``debug``: boolean
+Receives an array with the following keys:
+
+- ``&css``: the CSS output
+- ``debug``: boolean
+
+
+``WebErrorScreenEvents::LAYOUT_JS``
+-----------------------------------
+
+Emitted when JavaScript code is being output.
+
+Receives an array with the following keys:
+
+- ``&js``: the JS output
+- ``debug``: boolean
 
 
 CLI error screen events
 =======================
 
-Possible events emitted by the ``CliErrorScreen`` class:
+Possible events emitted by the ``CliErrorScreen`` class are listed in ``CliErrorScreenEvents``:
 
 
-render
-------
+``CliErrorScreenEvents::RENDER``
+--------------------------------
 
--  emitted when rendering in non-debug mode
--  single argument - an event array with the following keys:
+Emitted when rendering in non-debug mode.
 
-   -  ``&title``: first line of output
-   -  ``&output``: error message
-   -  ``exception``: the exception
-   -  ``output_buffer``: string|null
+Receives an array with the following keys:
 
-render.debug
-------------
+- ``&title``: first line of output
+- ``&output``: error message
+- ``exception``: the exception
+- ``output_buffer``: string|null
 
--  emitted when rendering in debug mode
--  single argument - an event array with the following keys:
 
-   -  ``&title``: first line of output
-   -  ``&output``: error message
-   -  ``exception``: the exception
-   -  ``output_buffer``: string|null
+``CliErrorScreenEvents::RENDER_DEBUG``
+--------------------------------------
+
+Emitted when rendering in debug mode.
+
+Receives an array with the following keys:ng keys:
+
+- ``&title``: first line of output
+- ``&output``: error message
+- ``exception``: the exception
+- ``output_buffer``: string|null
 
 
 Event listener examples
 =======================
-
-Notes
------
-
--  do not typehint the ``Exception`` class in your listeners if you want to be compatible with the new exception hierarchy of PHP 7
-
 
 Logging
 -------
@@ -246,12 +234,13 @@ Logging uncaught exceptions into a file:
    <?php
 
    use Kuria\Debug\Error;
+   use Kuria\Error\ErrorHandlerEvents;
 
-   $errorHandler->on('exception', function ($exception, $debug) {
-       $logFilePath = sprintf('./errors_%s.log', $debug ? 'debug' : 'prod');
+   $errorHandler->on(ErrorHandlerEvents::EXCEPTION, function (\Throwable $exception, bool $debug) {
+       $logFilePath = sprintf('./errors_%s.log', $debug ? 'dev' : 'prod');
 
        $entry = sprintf(
-           "[%s] %s - %s in file %s on line %d\n",
+           "[%s] %s: %s in file %s on line %d\n",
            date('Y-m-d H:i:s'),
            Error::getExceptionName($exception),
            $exception->getMessage(),
@@ -272,8 +261,11 @@ This listener causes statements like ``echo @$invalidVariable;`` to throw an exc
 
    <?php
 
-   $errorHandler->on('error', function ($exception, $debug, &$suppressed) {
-       $suppressed = false;
+   use Kuria\Error\Exception\ErrorException;
+   use Kuria\Error\ErrorHandlerEvents;
+
+   $errorHandler->on(ErrorHandlerEvents::ERROR, function (ErrorException $exception, bool $debug) {
+       $exception->force();
    });
 
 
@@ -285,18 +277,19 @@ Altering the error screens
    Examples are for the ``WebErrorScreen``.
 
 
-Changing default labels in production mode:
+Changing default labels in non-debug mode:
 
 .. code:: php
 
    <?php
 
    use Kuria\Error\Screen\WebErrorScreen;
-
-   $exceptionHandler = $errorHandler->getExceptionHandler();
-
-   if (!$errorHandler->getDebug() && $exceptionHandler instanceof WebErrorScreen) {
-       $exceptionHandler->on('render', function ($event) {
+   use Kuria\Error\Screen\WebErrorScreenEvents;
+   
+   $errorScreen = $errorHandler->getErrorScreen();
+   
+   if (!$errorHandler->isDebugEnabled() && $errorScreen instanceof WebErrorScreen) {
+       $errorScreen->on(WebErrorScreenEvents::RENDER, function ($event) {
            $event['heading'] = 'It is all your fault!';
            $event['text'] = 'You have broken everything and now I hate you.';
        });
@@ -311,27 +304,28 @@ Adding a customized section to the debug screen:
    <?php
 
    use Kuria\Error\Screen\WebErrorScreen;
-
-   $exceptionHandler = $errorHandler->getExceptionHandler();
-
-   if ($errorHandler->getDebug() && $exceptionHandler instanceof WebErrorScreen) {
-       $exceptionHandler
-           ->on('layout.css', function ($event) {
-               $event['css'] .= '#custom-group {color: #f60000;}';
-           })
-           ->on('render.debug', function ($event) {
-               $event['extras'] .= <<<HTML
+   use Kuria\Error\Screen\WebErrorScreenEvents;
+   
+   $errorScreen = $errorHandler->getErrorScreen();
+   
+   if ($errorHandler->isDebugEnabled() && $errorScreen instanceof WebErrorScreen) {
+       // add custom CSS
+       $errorScreen->on(WebErrorScreenEvents::LAYOUT_CSS, function (array $view) {
+           $view['css'] .= '#custom-group {color: #f60000;}';
+       });
+   
+       // add custom HTML
+       $errorScreen->on(WebErrorScreenEvents::RENDER_DEBUG, function (array $view) {
+           $view['extras'] .= <<<HTML
    <div id="custom-group" class="group">
-      <div class="section">
-          Example of a custom section
-      </div>
+    <div class="section">
+        Example of a custom section
+    </div>
    </div>
    HTML;
           });
-   }
+      }
 
 
-.. |Web error screen in non-debug mode| image:: http://static.shira.cz/kuria/error/v1.0.x/non-debug-thumb.gif
-   :target: http://static.shira.cz/kuria/error/v1.0.x/non-debug.png
-.. |Web error screen in debug mode| image:: http://static.shira.cz/kuria/error/v1.0.x/debug-thumb.gif
-   :target: http://static.shira.cz/kuria/error/v1.0.x/debug.png
+.. |Web error screen in non-debug mode| image:: ./doc/web-error-screen.png
+.. |Web error screen in debug mode| image:: ./doc/web-error-screen-debug.png

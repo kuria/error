@@ -1,10 +1,12 @@
-<?php
+<?php declare(strict_types=1);
 
-namespace Kuria\Error\Util;
+namespace Kuria\Error\Screen\Util;
 
-class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
+use PHPUnit\Framework\TestCase;
+
+class PhpCodePreviewTest extends TestCase
 {
-    public function testRender()
+    function testRender()
     {
         $html = PhpCodePreview::code($this->getTestCode());
 
@@ -21,7 +23,7 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('start=', $html);
     }
 
-    public function testRenderCustomClass()
+    function testRenderCustomClass()
     {
         $html = PhpCodePreview::code($this->getTestCode(), null, null, 'custom');
 
@@ -31,9 +33,9 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('class="code-preview"', $html);
     }
 
-    public function testRenderActiveLine()
+    function testRenderActiveLine()
     {
-        $html = PhpCodePreview::code($this->getTestCode(), 14);
+        $html = PhpCodePreview::code($this->getTestCode(), 11);
 
         $this->assertInternalType('string', $html);
 
@@ -43,22 +45,21 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('__construct', $html);
         $this->assertContains('sayHello', $html);
         $this->assertContains('echo', $html);
-        $this->assertRegExp('~class="active".+__construct~m', $html);
+        $this->assertRegExp('{class="active".+__construct}m', $html);
 
         $this->assertNotContains('start=', $html);
     }
 
-    /**
-     * @expectedException LogicException
-     */
-    public function testRenderLineRangeRequiresActiveLine()
+    function testRenderLineRangeRequiresActiveLine()
     {
+        $this->expectException(\LogicException::class);
+
         PhpCodePreview::code($this->getTestCode(), null, 5);
     }
 
-    public function testRenderActiveLineRange()
+    function testRenderActiveLineRange()
     {
-        $html = PhpCodePreview::code($this->getTestCode(), 14, 5);
+        $html = PhpCodePreview::code($this->getTestCode(), 11, 2);
 
         $this->assertInternalType('string', $html);
 
@@ -69,16 +70,15 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('__construct', $html);
         $this->assertContains('$this', $html);
         
-        $this->assertRegExp('~class="active".+__construct~m', $html);
-
+        $this->assertRegExp('{class="active".+__construct}m', $html);
+        $this->assertNotContains('@var', $html);
         $this->assertNotContains('Example', $html);
         $this->assertNotContains('Lorem', $html);
-        $this->assertNotContains('@var', $html);
         $this->assertNotContains('sayHello', $html);
         $this->assertNotContains('echo', $html);
     }
     
-    public function testRenderFile()
+    function testRenderFile()
     {
         $html = PhpCodePreview::file(__FILE__, __LINE__, 5);
         
@@ -86,7 +86,7 @@ class PhpCodePreviewTest extends \PHPUnit_Framework_TestCase
 
         $this->assertContains('<ol start="' . (__LINE__ - 4 - 5) . '" class="code-preview">', $html);
         $this->assertContains('</ol>', $html);
-        $this->assertRegExp('~class="active".+PhpCodePreview~m', $html);
+        $this->assertRegExp('{class="active".+PhpCodePreview}m', $html);
         $this->assertContains('__FILE__', $html);
         $this->assertContains('__LINE__', $html);
     }
@@ -104,18 +104,12 @@ class Lorem extends Ipsum
     /** @var string */
     protected $name;
 
-    /**
-     * @param string $name
-     */
-    public function __construct($name)
+    function __construct(string $name)
     {
         $this->name = $name;
     }
 
-    /**
-     * @param string $to
-     */
-    public function sayHello($to)
+    function sayHello(string $to): void
     {
         echo <<<MESSAGE
 Hello {$to},

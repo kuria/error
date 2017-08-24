@@ -1,25 +1,18 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Kuria\Error\Screen;
 
 use Kuria\Debug\Dumper;
 use Kuria\Debug\Error;
-use Kuria\Error\ErrorHandler;
-use Kuria\Error\ExceptionHandlerInterface;
-use Kuria\Error\Util\PhpCodePreview;
-use Kuria\Event\EventEmitter;
+use Kuria\Error\ErrorScreenInterface;
+use Kuria\Error\Exception\OutOfMemoryException;
+use Kuria\Error\Screen\Util\PhpCodePreview;
+use Kuria\Event\Observable;
 
 /**
- * Web error screen
- *
- * @emits render(array $event) when rendering in non-debug mode, {@see doRender()}
- * @emits render.debug(array $event) when rendering in debug mode, {@see doRenderDebug()}
- * @emits layout.css(array $event) when compiling CSS styles, {@see getLayoutCss()}
- * @emits layout.js(array $event) when compiling JS code, {@see getLayoutJs()}
- * 
- * @author ShiraNai7 <shira.cz>
+ * @see WebErrorScreenEvents
  */
-class WebErrorScreen extends EventEmitter implements ExceptionHandlerInterface
+class WebErrorScreen extends Observable implements ErrorScreenInterface
 {
     /** @var string */
     protected $encoding = 'UTF-8';
@@ -38,90 +31,71 @@ class WebErrorScreen extends EventEmitter implements ExceptionHandlerInterface
      * Set encoding used to escape and dump values
      *
      * It must be supported by htmlentities() and the mb_*() functions.
-     *
-     * @param string $encoding
-     * @return static
      */
-    public function setEncoding($encoding)
+    function setEncoding(string $encoding): void
     {
         $this->encoding = $encoding;
-        
-        return $this;
     }
 
     /**
      * Set charset of the HTML page
-     *
-     * @param string $htmlCharset
-     * @return static
      */
-    public function setHtmlCharset($htmlCharset)
+    function setHtmlCharset(string $htmlCharset): void
     {
         $this->htmlCharset = $htmlCharset;
-
-        return $this;
     }
 
     /**
-     * @param int $maxOutputBufferLength bytes
-     * @return static
+     * Do not display output buffer larger than the specified number of bytes
      */
-    public function setMaxOutputBufferLength($maxOutputBufferLength)
+    function setMaxOutputBufferLength(int $maxOutputBufferLength): void
     {
         $this->maxOutputBufferLength = $maxOutputBufferLength;
-
-        return $this;
     }
 
     /**
-     * @param int $maxCodePreviewFileSize bytes
-     * @return static
+     * Do not render code preview for PHP scripts larger than the specified number of bytes
      */
-    public function setMaxCodePreviewFileSize($maxCodePreviewFileSize)
+    function setMaxCodePreviewFileSize(int $maxCodePreviewFileSize): void
     {
         $this->maxCodePreviewFileSize = $maxCodePreviewFileSize;
-
-        return $this;
     }
 
-    public function handle($exception, $errorType, $debug, $outputBuffer = null)
+    function render(\Throwable $exception, bool $debug, ?string $outputBuffer = null): void
     {
         if (!headers_sent()) {
             header('Content-Type: text/html; charset=' . $this->htmlCharset);
         }
 
-        $this->codePreviewEnabled = $errorType !== ErrorHandler::OUT_OF_MEMORY;
+        $this->codePreviewEnabled = !$exception instanceof OutOfMemoryException;
         
-        list($title, $html) = $debug
+        [$title, $html] = $debug
             ? $this->doRenderDebug($exception, $outputBuffer)
             : $this->doRender($exception, $outputBuffer);
 
-        // render layout
         $this->renderLayout($debug, $title, $html);
     }
 
     /**
      * Render the exception (non-debug)
      *
-     * @param \Throwable|\Exception $exception
-     * @param string|null           $outputBuffer
-     * @return array title, html
+     * Returns a [title, html] tuple.
      */
-    protected function doRender($exception, $outputBuffer = null)
+    protected function doRender(\Throwable $exception, ?string $outputBuffer = null): array
     {
         $title = 'Internal server error';
         $heading = 'Internal server error';
         $text = 'Something went wrong while processing your request. Please try again later.';
         $extras = '';
 
-        $this->emit('render', array(
+        $this->emit(WebErrorScreenEvents::RENDER, [
             'title' => &$title,
             'heading' => &$heading,
             'text' => &$text,
             'extras' => &$extras,
             'exception' => $exception,
             'output_buffer' => $outputBuffer,
-        ));
+        ]);
 
         $output = <<<HTML
 <div class="group">
@@ -137,27 +111,25 @@ HTML;
             $output .= "\n" . $extras;
         }
 
-        return array($title, $output);
+        return [$title, $output];
     }
 
     /**
      * Render the exception (debug)
      *
-     * @param \Throwable|\Exception $exception
-     * @param string|null           $outputBuffer
-     * @return array title, html
+     * Returns a [title, html] tuple.
      */
-    protected function doRenderDebug($exception, $outputBuffer = null)
+    protected function doRenderDebug(\Throwable $exception, ?string $outputBuffer = null): array
     {
         $title = Error::getExceptionName($exception);
         $extras = '';
 
-        $this->emit('render.debug', array(
+        $this->emit(WebErrorScreenEvents::RENDER_DEBUG, [
             'title' => &$title,
             'extras' => &$extras,
             'exception' => $exception,
             'output_buffer' => $outputBuffer,
-        ));
+        ]);
 
         $output = '';
         $chain = Error::getExceptionChain($exception);
@@ -174,17 +146,13 @@ HTML;
             }
         }
 
-        return array($title, $output);
+        return [$title, $output];
     }
 
     /**
      * Render the HTML layout
-     *
-     * @param bool   $debug
-     * @param string $title   main title
-     * @param string $content html content
      */
-    protected function renderLayout($debug, $title, $content)
+    protected function renderLayout(bool $debug, string $title, string $content): void
     {
         $js = $this->getLayoutJs($debug);
         $css = $this->getLayoutCss($debug);
@@ -193,11 +161,11 @@ HTML;
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="<?php echo $this->escape($this->htmlCharset) ?>">
+<meta charset="<?= $this->escape($this->htmlCharset) ?>">
 <style type="text/css">
-<?php echo $css ?>
+<?= $css ?>
 </style>
-<title><?php echo $this->escape($title) ?></title>
+<title><?= $this->escape($title) ?></title>
 </head>
 
 <body>
@@ -206,7 +174,7 @@ HTML;
 
         <div id="content">
 
-<?php echo $content ?>
+<?= $content ?>
 
         </div>
 
@@ -214,20 +182,14 @@ HTML;
 
 <?php if ($js !== ''): ?>
 <script type="text/javascript">
-<?php echo $js ?>
+<?= $js ?>
 </script>
 <?php endif ?>
 </body>
 </html><?php
     }
 
-    /**
-     * Get CSS for the HTML layout
-     *
-     * @param bool $debug
-     * @return string
-     */
-    protected function getLayoutCss($debug)
+    protected function getLayoutCss(bool $debug): string
     {
         ob_start();
 
@@ -253,7 +215,7 @@ a {color: #28639e; text-decoration: none;}
 a:hover {color: #000; text-decoration: underline;}
 a:active {color: #f00;}
 
-#wrapper {margin: 0 auto; padding: 0 1em; overflow: hidden; max-width: <?php echo $debug ? '1200' : '700' ?>px;}
+#wrapper {margin: 0 auto; padding: 0 1em; overflow: hidden; max-width: <?= $debug ? '1200' : '700' ?>px;}
 
 div.section {position: relative;}
 div.section.major h2 {font-size: 2em;}
@@ -318,21 +280,15 @@ pre.context {padding: 10px; border: 1px solid #ddd; background-color: #fff;}
 
         $css = ob_get_clean();
 
-        $this->emit('layout.css', array(
+        $this->emit(WebErrorScreenEvents::LAYOUT_CSS, [
             'css' => &$css,
             'debug' => $debug,
-        ));
+        ]);
 
         return $css;
     }
 
-    /**
-     * Get javascript for the HTML layout
-     *
-     * @param bool $debug
-     * @return string
-     */
-    protected function getLayoutJs($debug)
+    protected function getLayoutJs(bool $debug): string
     {
         ob_start();
 
@@ -372,7 +328,7 @@ var Kuria;
                         try {
                             traceExtra.style.display = 'table-row';
                         } catch (e) {
-                            // IE7 :)
+                            // IE7
                             traceExtra.style.display = 'block';
                         }
                     } else {
@@ -433,34 +389,23 @@ var Kuria;
 
         $js = ob_get_clean();
 
-        $this->emit('layout.js', array(
+        $this->emit(WebErrorScreenEvents::LAYOUT_JS, [
             'js' => &$js,
             'debug' => $debug,
-        ));
+        ]);
 
         return $js;
     }
 
     /**
      * Escape the given string string for HTML
-     *
-     * @param string $string the string to escape
-     * @return string html
      */
-    protected function escape($string)
+    protected function escape(string $string): string
     {
         return htmlspecialchars($string, ENT_QUOTES | ENT_IGNORE, $this->encoding);
     }
 
-    /**
-     * Render an exception
-     *
-     * @param \Throwable|\Exception $exception the exception instance
-     * @param int                   $index     index of the current exception
-     * @param int                   $total     total number of exceptions
-     * @return string html
-     */
-    protected function renderException($exception, $index, $total)
+    protected function renderException(\Throwable $exception, int $index, int $total): string
     {
         $trace = $exception->getTrace();
         $isMain = $index === 0;
@@ -499,13 +444,7 @@ HTML;
         return $html;
     }
 
-    /**
-     * Render trace
-     *
-     * @param array $trace the trace array
-     * @return string html
-     */
-    protected function renderTrace(array $trace)
+    protected function renderTrace(array $trace): string
     {
         $traceCounter = sizeof($trace) - 1;
         $html = <<<HTML
@@ -516,7 +455,7 @@ HTML;
 HTML;
 
         foreach ($trace as $frame) {
-            $frameUid = $this->getUid();
+            $frameUid = $this->generateUid();
             $frameArgNum = isset($frame['args']) ? sizeof($frame['args']) : 0;
             $renderExtras = true;
 
@@ -587,13 +526,7 @@ HTML;
         return $html;
     }
 
-    /**
-     * Render arguments
-     *
-     * @param array $args array of arguments
-     * @return string html
-     */
-    protected function renderArguments(array $args)
+    protected function renderArguments(array $args): string
     {
         $html = "<h4>Arguments</h4>\n<table class=\"argument-list\"><tbody>\n";
         for ($i = 0, $argCount = sizeof($args); $i < $argCount; ++$i) {
@@ -604,13 +537,7 @@ HTML;
         return $html;
     }
 
-    /**
-     * Render output buffer
-     *
-     * @param string|null $outputBuffer
-     * @return string html
-     */
-    protected function renderOutputBuffer($outputBuffer)
+    protected function renderOutputBuffer(?string $outputBuffer): string
     {
         if ($outputBuffer === null || $outputBuffer === '') {
             return '';
@@ -631,9 +558,9 @@ HTML;
 
         // render
         if ($show) {
-            $textareaId = sprintf('output-buffer-%d', $this->getUid());
+            $textareaId = sprintf('output-buffer-%d', $this->generateUid());
         }
-        $wrapperId = sprintf('output-buffer-wrapper-%d', $this->getUid());
+        $wrapperId = sprintf('output-buffer-wrapper-%d', $this->generateUid());
 
         return "<div class=\"group\">
     <div class=\"section\">
@@ -645,13 +572,7 @@ HTML;
         . "</div>\n</div>\n</div>\n";
     }
 
-    /**
-     * Render a plaintext exception trace
-     *
-     * @param \Throwable|\Exception $exception
-     * @return string
-     */
-    protected function renderPlaintextTrace($exception)
+    protected function renderPlaintextTrace(\Throwable $exception): string
     {
         $trace = Error::renderException($exception, true, true);
 
@@ -667,42 +588,26 @@ HTML;
 HTML;
     }
 
-    /**
-     * Render code preview
-     *
-     * @param string $file
-     * @param int    $line
-     * @param int    $lineRange
-     * @return string|null
-     */
-    protected function renderCodePreview($file, $line, $lineRange = 5)
+    protected function renderCodePreview(string $file, int $line, int $lineRange = 5): ?string
     {
         if (
             $this->codePreviewEnabled
             && is_file($file)
+            && is_readable($file)
             && filesize($file) < $this->maxCodePreviewFileSize
         ) {
             return PhpCodePreview::file($file, $line, $lineRange);
         }
+
+        return null;
     }
 
-    /**
-     * Render file path
-     *
-     * @param string $file
-     * @return string html
-     */
-    protected function renderFilePath($file)
+    protected function renderFilePath(string $file): string
     {
         return $this->escape(str_replace('\\', '/', $file));
     }
 
-    /**
-     * Get unique ID
-     *
-     * @return int
-     */
-    protected function getUid()
+    protected function generateUid(): int
     {
         return ++$this->uidSeq;
     }

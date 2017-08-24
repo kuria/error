@@ -1,12 +1,13 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Kuria\Error\Screen;
 
-use Kuria\Error\ErrorHandler;
+use Kuria\Error\Exception\ErrorException;
+use PHPUnit\Framework\TestCase;
 
-class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
+class WebErrorScreenTest extends TestCase
 {
-    public function testRender()
+    function testRender()
     {
         $screen = new WebErrorScreen();
 
@@ -17,20 +18,19 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('Test exception', $output);
         $this->assertNotContains('foo bar output buffer', $output);
         $this->assertNotContains(basename(__FILE__), $output);
-        $this->assertNotRegExp('~<ol[^>]+class="code-preview">~m', $output);
+        $this->assertNotRegExp('{<ol[^>]+class="code-preview">}m', $output);
         $this->assertNotContains('<table class="trace">', $output);
     }
 
-    public function testRenderEvent()
+    function testRenderEvent()
     {
-        $that = $this;
         $handlerCalled = false;
 
         $screen = new WebErrorScreen();
 
-        $screen->on('render', function (array $event) use ($that, &$handlerCalled) {
-            $that->assertFalse($handlerCalled);
-            $that->assertRenderEvent($event, false);
+        $screen->on(WebErrorScreenEvents::RENDER, function (array $event) use (&$handlerCalled) {
+            $this->assertFalse($handlerCalled);
+            $this->assertRenderEvent($event, false);
 
             $event['title'] = 'Oh no';
             $event['heading'] = 'You broke everything';
@@ -50,28 +50,28 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertNotContains('Test exception', $output);
         $this->assertNotContains('foo bar output buffer', $output);
         $this->assertNotContains(basename(__FILE__), $output);
-        $this->assertNotRegExp('~<ol[^>]+class="code-preview">~m', $output);
+        $this->assertNotRegExp('{<ol[^>]+class="code-preview">}m', $output);
         $this->assertNotContains('<table class="trace">', $output);
     }
 
-    public function testDebugRender()
+    function testDebugRender()
     {
         $screen = new WebErrorScreen();
 
         $output = $this->doRender($screen, $this->createTestException(), true);
 
-        $this->assertRegExp('~<h1>.*User error.*</h1>~m', $output);
+        $this->assertRegExp('{<h1>.*User error.*</h1>}m', $output);
         $this->assertContains('Test exception', $output);
         $this->assertContains(basename(__FILE__), $output);
-        $this->assertRegExp('~<ol[^>]+class="code-preview">~m', $output);
+        $this->assertRegExp('{<ol[^>]+class="code-preview">}m', $output);
         $this->assertContains('<table class="trace">', $output);
-        $this->assertRegExp('~<h2>.*Exception.*</h2>~m', $output);
+        $this->assertRegExp('{<h2>.*Exception.*</h2>}m', $output);
         $this->assertContains('Test nested exception', $output);
         $this->assertContains('foo bar output buffer', $output);
     }
 
 
-    public function testDebugRenderLongOutputBuffer()
+    function testDebugRenderLongOutputBuffer()
     {
         $screen = new WebErrorScreen();
 
@@ -82,7 +82,7 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('The output buffer is too big', $output);
     }
 
-    public function testDebugRenderBinaryOutputBuffer()
+    function testDebugRenderBinaryOutputBuffer()
     {
         $screen = new WebErrorScreen();
 
@@ -93,16 +93,16 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains('The output buffer contains unprintable', $output);
     }
 
-    public function testDebugRenderEmptyOutputBuffer()
+    function testDebugRenderEmptyOutputBuffer()
     {
         $screen = new WebErrorScreen();
 
         $output = $this->doRender($screen, $this->createTestException(), true, '');
 
-        $this->assertNotRegExp('~<h2.*Output buffer.*</h2>~m', $output);
+        $this->assertNotRegExp('{<h2.*Output buffer.*</h2>}m', $output);
     }
 
-    public function testCodePreviewSizeLimit()
+    function testCodePreviewSizeLimit()
     {
         $screen = new WebErrorScreen();
 
@@ -110,19 +110,18 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $output = $this->doRender($screen, $this->createTestException(), true);
 
-        $this->assertNotRegExp('~<ol[^>]+class="code-preview">~m', $output);
+        $this->assertNotRegExp('{<ol[^>]+class="code-preview">}m', $output);
     }
 
-    public function testDebugRenderEvent()
+    function testDebugRenderEvent()
     {
-        $that = $this;
         $handlerCalled = false;
 
         $screen = new WebErrorScreen();
 
-        $screen->on('render.debug', function ($event) use ($that, &$handlerCalled) {
-            $that->assertFalse($handlerCalled);
-            $that->assertRenderEvent($event, true);
+        $screen->on(WebErrorScreenEvents::RENDER_DEBUG, function ($event) use (&$handlerCalled) {
+            $this->assertFalse($handlerCalled);
+            $this->assertRenderEvent($event, true);
 
             $event['title'] = 'Oh no';
             $event['extras'] = 'custom content lorem ipsum';
@@ -134,70 +133,68 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
 
         $this->assertTrue($handlerCalled);
         $this->assertContains('<title>Oh no</title>', $output);
-        $this->assertRegExp('~<h1>.*User error.*</h1>~m', $output);
+        $this->assertRegExp('{<h1>.*User error.*</h1>}m', $output);
         $this->assertContains('Test exception', $output);
         $this->assertContains(basename(__FILE__), $output);
-        $this->assertRegExp('~<ol[^>]+class="code-preview">~m', $output);
+        $this->assertRegExp('{<ol[^>]+class="code-preview">}m', $output);
                 $this->assertContains('<table class="trace">', $output);
         $this->assertContains('custom content lorem ipsum', $output);
-        $this->assertRegExp('~<h2>.*Exception.*</h2>~m', $output);
+        $this->assertRegExp('{<h2>.*Exception.*</h2>}m', $output);
         $this->assertContains('Test nested exception', $output);
-        $this->assertRegExp('~<h2.*Output buffer.*</h2>~m', $output);
+        $this->assertRegExp('{<h2.*Output buffer.*</h2>}m', $output);
     }
 
-    public function testLayoutEvents()
+    function testLayoutEvents()
     {
         $this->doTestLayoutEvents(false);
     }
 
-    public function testDebugLayoutEvents()
+    function testDebugLayoutEvents()
     {
         $this->doTestLayoutEvents(true);
     }
 
-    private function doTestLayoutEvents($debugEnabled)
+    private function doTestLayoutEvents(bool $debugEnabled): void
     {
-        $that = $this;
         $cssHandlerCalled = false;
         $jsHandlerCalled = false;
 
         $screen = new WebErrorScreen();
 
-        $screen
-            ->on('layout.css', function ($event) use ($that, $debugEnabled, &$cssHandlerCalled) {
-                $that->assertFalse($cssHandlerCalled);
-                $that->assertAssetEvent($event, 'css', $debugEnabled);
+        $screen->on(WebErrorScreenEvents::LAYOUT_CSS, function ($event) use ($debugEnabled, &$cssHandlerCalled) {
+            $this->assertFalse($cssHandlerCalled);
+            $this->assertAssetEvent($event, 'css', $debugEnabled);
 
-                $event['css'] .= '/* my custom css */';
+            $event['css'] .= '/* my custom css */';
 
-                $cssHandlerCalled = true;
-            })
-            ->on('layout.js', function ($event) use ($that, $debugEnabled, &$jsHandlerCalled) {
-                $that->assertFalse($jsHandlerCalled);
-                $that->assertAssetEvent($event, 'js', $debugEnabled);
+            $cssHandlerCalled = true;
+        });
 
-                $event['js'] .= '/* my custom js */';
+        $screen->on(WebErrorScreenEvents::LAYOUT_JS, function ($event) use ($debugEnabled, &$jsHandlerCalled) {
+            $this->assertFalse($jsHandlerCalled);
+            $this->assertAssetEvent($event, 'js', $debugEnabled);
 
-                $jsHandlerCalled = true;
-            });
+            $event['js'] .= '/* my custom js */';
+
+            $jsHandlerCalled = true;
+        });
 
         $output = $this->doRender($screen, $this->createTestException(), $debugEnabled);
 
         $this->assertTrue($cssHandlerCalled);
         $this->assertTrue($jsHandlerCalled);
-        $this->assertRegExp('~<style[^>]*>.*/\* my custom css \*/.*</style>~s', $output);
-        $this->assertRegExp('~<script[^>]*>.*/\* my custom js \*/.*</script>~s', $output);
+        $this->assertRegExp('{<style[^>]*>.*/\* my custom css \*/.*</style>}s', $output);
+        $this->assertRegExp('{<script[^>]*>.*/\* my custom js \*/.*</script>}s', $output);
     }
 
-    public function testCustomEncoding()
+    function testCustomEncoding()
     {
         $encodedMessage = mb_convert_encoding('Желтый Верховая', 'KOI8-R', 'UTF-8');
 
         $screen = new WebErrorScreen();
 
-        $screen
-            ->setEncoding('KOI8-R')
-            ->setHtmlCharset('KOI8-R');
+        $screen->setEncoding('KOI8-R');
+        $screen->setHtmlCharset('KOI8-R');
 
         $output = $this->doRender($screen, $this->createTestException($encodedMessage), true);
 
@@ -205,22 +202,19 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertContains($encodedMessage, $output);
     }
 
-    /**
-     * @return \ErrorException
-     */
-    private function createTestException($message = 'Test exception')
+    private function createTestException(string $message = 'Test exception'): ErrorException
     {
-        return new \ErrorException(
+        return new ErrorException(
             $message,
-            0,
             E_USER_ERROR,
+            false,
             __FILE__,
             __LINE__,
             new \Exception('Test nested exception')
         );
     }
 
-    public function assertRenderEvent($event, $debug)
+    function assertRenderEvent($event, bool $debug): void
     {
         $this->assertInternalType('array', $event);
         $this->assertArrayHasKey('title', $event);
@@ -242,7 +236,7 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         }
     }
 
-    public function assertAssetEvent($event, $type, $debug)
+    function assertAssetEvent($event, string $type, bool $debug): void
     {
         $this->assertInternalType('array', $event);
         $this->assertArrayHasKey($type, $event);
@@ -253,18 +247,11 @@ class WebErrorScreenTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($debug, $event['debug']);
     }
 
-    /**
-     * @param WebErrorScreen $screen
-     * @param object         $exception
-     * @param bool           $debug
-     * @param string|null    $outputBuffer
-     * @return string
-     */
-    private function doRender(WebErrorScreen $screen, $exception, $debug, $outputBuffer = 'foo bar output buffer')
+    private function doRender(WebErrorScreen $screen, \Throwable $exception, bool $debug, ?string $outputBuffer = 'foo bar output buffer'): string
     {
         ob_start();
 
-        $screen->handle($exception, ErrorHandler::UNCAUGHT_EXCEPTION, $debug, $outputBuffer);
+        $screen->render($exception, $debug, $outputBuffer);
 
         return ob_get_clean();
     }

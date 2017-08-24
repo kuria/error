@@ -1,95 +1,75 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace Kuria\Error\Screen;
 
 use Kuria\Debug\Error;
-use Kuria\Error\ExceptionHandlerInterface;
-use Kuria\Event\EventEmitter;
+use Kuria\Error\ErrorScreenInterface;
+use Kuria\Event\Observable;
 
 /**
- * CLI error screen
- *
- * @emits render(array &$view, \Throwable $exception, string|null $outputBuffer, CliErrorScreen $screen)
- * @emits render.debug(array &$view, \Throwable $exception, string|null $outputBuffer, CliErrorScreen $screen)
- * 
- * @author ShiraNai7 <shira.cz>
+ * @see CliErrorScreenEvents
  */
-class CliErrorScreen extends EventEmitter implements ExceptionHandlerInterface
+class CliErrorScreen extends Observable implements ErrorScreenInterface
 {
-    /** @var resource */
+    /** @var resource|null */
     protected $outputStream;
 
-    public function handle($exception, $errorType, $debug, $outputBuffer = null)
+    function render(\Throwable $exception, bool $debug, ?string $outputBuffer = null): void
     {
         $outputStream = $this->getOutputStream();
 
-        list($title, $output) = $debug
+        [$title, $output] = $debug
             ? $this->doRenderDebug($exception, $outputBuffer)
             : $this->doRender($exception, $outputBuffer);
 
-        if ($title) {
+        $this->emit($debug ? CliErrorScreenEvents::RENDER_DEBUG : CliErrorScreenEvents::RENDER, [
+            'title' => &$title,
+            'output' => &$output,
+            'exception' => $exception,
+            'output_buffer' => $outputBuffer,
+        ]);
+
+        if ($title !== '') {
             fwrite($outputStream, $title);
         }
 
-        if ($output) {
-            if ($title) {
+        if ($output !== '') {
+            if ($title !== '') {
                 fwrite($outputStream, "\n\n");
             }
 
             fwrite($outputStream, $output);
+        }
+
+        if ($title !== '' || $output !== '') {
+            fwrite($outputStream, "\n");
         }
     }
 
     /**
      * Render the exception (non-debug)
      *
-     * @param \Throwable|\Exception $exception
-     * @param string|null $          outputBuffer
-     * @return array title, output
+     * Returns a [title, output] tuple.
      */
-    protected function doRender($exception, $outputBuffer = null)
+    protected function doRender(\Throwable $exception, ?string $outputBuffer = null): array
     {
-        $title = 'An error has occured';
-        $output = 'Enable debug mode for more details.';
-
-        $this->emit('render', array(
-            'title' => &$title,
-            'output' => &$output,
-            'exception' => $exception,
-            'output_buffer' => $outputBuffer,
-        ));
-
-        return array($title, $output);
+        return ['An error has occured', 'Enable debug mode for more details.'];
     }
 
     /**
      * Render the exception (debug)
      *
-     * @param \Throwable|\Exception $exception
-     * @param string|null           $outputBuffer
-     * @return array title, output
+     * Returns a [title, output] tuple.
      */
-    protected function doRenderDebug($exception, $outputBuffer = null)
+    protected function doRenderDebug(\Throwable $exception, ?string $outputBuffer = null): array
     {
-        $title = 'An error has occured';
-        $output = Error::renderException($exception, true, true);
-
-        $this->emit('render.debug', array(
-            'title' => &$title,
-            'output' => &$output,
-            'exception' => $exception,
-            'output_buffer' => $outputBuffer,
-        ));
-
-        return array($title, $output);
+        return ['An error has occured', Error::renderException($exception, true, true)];
     }
 
     /**
-     * Get output stream used for rendering
-     *
      * @return resource
      */
-    public function getOutputStream()
+    function getOutputStream()
     {
         if ($this->outputStream !== null) {
             $stream = $this->outputStream;
@@ -103,11 +83,9 @@ class CliErrorScreen extends EventEmitter implements ExceptionHandlerInterface
     }
 
     /**
-     * Set output stream used for rendering
-     *
      * @param resource $outputStream
      */
-    public function setOutputStream($outputStream)
+    function setOutputStream($outputStream): void
     {
         $this->outputStream = $outputStream;
     }
