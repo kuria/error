@@ -1,0 +1,45 @@
+#wrapper {max-width: 1200px;}
+
+body {background-color: #b03c3c;}
+pre {overflow-y: auto; max-height: 300px; line-height: 1.4; white-space: -moz-pre-wrap; white-space: -pre-wrap; white-space: -o-pre-wrap; white-space: pre-wrap; word-break: break-all; word-wrap: break-word;}
+textarea, iframe {display: block; box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box;}
+textarea {width: 100%; margin: 1em 0; padding: 0.5em; border: 1px solid #aaa; font-family: monospace; font-size: inherit;}
+iframe {margin: 1em 0; border: 1px solid #aaa; width: 100%; height: 500px; background-color: #fff;}
+.code-preview {overflow-x: auto; padding-left: 60px; border: 1px solid #ddd; line-height: 1.5; font-family: monospace; word-break: break-all; background-color: #eee;}
+.code-preview > li {background-color: #fff; padding-left: 10px;}
+.code-preview > .active {background-color: #ebf4ff;}
+
+.trace {width: 100%;}
+.trace > tbody > .trace > th {width: 1%;}
+.trace > tbody > .trace.expandable > td {cursor: pointer;}
+.trace > tbody > .trace.expandable:hover > td, .trace > tbody > .trace.open > td {background-color: #ebf4ff;}
+.trace > tbody > .trace-extra {display: none;}
+
+.argument-list {margin-top: 0.5em; width: 100%;}
+.argument-list:first-child {margin: 0;}
+.argument-list > tbody > tr > th,
+.argument-list > tbody > tr > th {width: 1%;}
+
+.toggle-control {cursor: pointer; position: relative;}
+.toggle-control:hover {text-decoration: underline;}
+.toggle-control:after {display: inline-block; margin-left: 5px; font-size: 0.6em; color: #777; vertical-align: middle; text-decoration: none;}
+.toggle-control.closed:after {content: "▼";}
+.toggle-control.open:after {content: "▲";}
+
+.section > .toggle-control:before {content: ""; position: absolute; left: -26px; top: -26px; width: 100%; height: 100%; padding: 26px;}
+.section > .toggle-control.open:before {padding-bottom: 0;}
+.exception {padding-top: 1.5em;}
+.exception > .section.major {margin: -1.5em -2em 0 -2em; padding: 1.5em 2em 1em 2em; background-color: #eee;}
+
+.text-break {overflow-wrap: break-word; word-wrap: break-word; -ms-word-break: break-all; word-break: break-all; word-break: break-word;}
+.hidden {display: none;}
+
+@media (max-width: 768px) {
+    .trace td, .trace th {display: block; width: auto !important;}
+    .trace > tbody > tr > th, .trace > tbody > tr > td {border-top-width: 0;}
+    .trace > tbody > tr:first-child > th:first-child {border-top-width: 1px;}
+    .trace > tbody > tr > th:before {content: "Frame ";}
+    .argument-list th:before {content: "Argument #";}
+    .argument-list > tbody > tr > th, .argument-list > tbody > tr > td {border-top-width: 0;}
+    .argument-list > tbody > tr:first-child > th:first-child {border-top-width: 1px;}
+}

@@ -1,6 +1,21 @@
 Changelog
 #########
 
+
+3.0.0
+*****
+
+- web error screen improvements
+
+  - improved styles
+  - added favicon (debug only)
+  - added viewport meta tag
+  - moved CSS and JS to separate files
+  - simplified CSS and JS events
+
+- moved ``PhpCodePreview`` into its own component
+
+
 2.0.0
 *****
 

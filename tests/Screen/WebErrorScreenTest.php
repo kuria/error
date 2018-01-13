@@ -144,37 +144,30 @@ class WebErrorScreenTest extends TestCase
         $this->assertRegExp('{<h2.*Output buffer.*</h2>}m', $output);
     }
 
-    function testLayoutEvents()
-    {
-        $this->doTestLayoutEvents(false);
-    }
-
-    function testDebugLayoutEvents()
-    {
-        $this->doTestLayoutEvents(true);
-    }
-
-    private function doTestLayoutEvents(bool $debugEnabled): void
+    /**
+     * @dataProvider provideDebugStates
+     */
+    function testLayoutEvents(bool $debugEnabled)
     {
         $cssHandlerCalled = false;
         $jsHandlerCalled = false;
 
         $screen = new WebErrorScreen();
 
-        $screen->on(WebErrorScreenEvents::LAYOUT_CSS, function ($event) use ($debugEnabled, &$cssHandlerCalled) {
+        $screen->on(WebErrorScreenEvents::CSS, function (bool $debug) use ($debugEnabled, &$cssHandlerCalled) {
             $this->assertFalse($cssHandlerCalled);
-            $this->assertAssetEvent($event, 'css', $debugEnabled);
+            $this->assertSame($debugEnabled, $debug);
 
-            $event['css'] .= '/* my custom css */';
+            echo '/* my custom css */';
 
             $cssHandlerCalled = true;
         });
 
-        $screen->on(WebErrorScreenEvents::LAYOUT_JS, function ($event) use ($debugEnabled, &$jsHandlerCalled) {
+        $screen->on(WebErrorScreenEvents::JS, function (bool $debug) use ($debugEnabled, &$jsHandlerCalled) {
             $this->assertFalse($jsHandlerCalled);
-            $this->assertAssetEvent($event, 'js', $debugEnabled);
+            $this->assertSame($debugEnabled, $debug);
 
-            $event['js'] .= '/* my custom js */';
+            echo '/* my custom js */';
 
             $jsHandlerCalled = true;
         });
@@ -183,8 +176,13 @@ class WebErrorScreenTest extends TestCase
 
         $this->assertTrue($cssHandlerCalled);
         $this->assertTrue($jsHandlerCalled);
-        $this->assertRegExp('{<style[^>]*>.*/\* my custom css \*/.*</style>}s', $output);
-        $this->assertRegExp('{<script[^>]*>.*/\* my custom js \*/.*</script>}s', $output);
+        $this->assertRegExp('{<style>.*/\* my custom css \*/.*</style>}s', $output);
+        $this->assertRegExp('{<script>.*/\* my custom js \*/.*</script>}s', $output);
+    }
+
+    function provideDebugStates(): array
+    {
+        return [[false], [true]];
     }
 
     function testCustomEncoding()
@@ -198,7 +196,7 @@ class WebErrorScreenTest extends TestCase
 
         $output = $this->doRender($screen, $this->createTestException($encodedMessage), true);
 
-        $this->assertContains('<meta charset="KOI8-R">', $output);
+        $this->assertContains('<meta charset="koi8-r">', $output);
         $this->assertContains($encodedMessage, $output);
     }
 
@@ -234,17 +232,6 @@ class WebErrorScreenTest extends TestCase
             $this->assertInternalType('string', $event['heading']);
             $this->assertInternalType('string', $event['text']);
         }
-    }
-
-    function assertAssetEvent($event, string $type, bool $debug): void
-    {
-        $this->assertInternalType('array', $event);
-        $this->assertArrayHasKey($type, $event);
-        $this->assertArrayHasKey('debug', $event);
-
-        $this->assertInternalType('string', $event[$type]);
-        $this->assertInternalType('boolean', $event['debug']);
-        $this->assertSame($debug, $event['debug']);
     }
 
     private function doRender(WebErrorScreen $screen, \Throwable $exception, bool $debug, ?string $outputBuffer = 'foo bar output buffer'): string

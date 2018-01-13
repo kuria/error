@@ -1,0 +1,40 @@
+* {margin: 0; padding: 0;}
+body {background-color: #56708a; font-family: 'Trebuchet MS', 'Geneva CE', lucida, sans-serif; font-size: 13px;}
+h1, h2, h3, h4 {font-weight: normal;}
+h1 {font-size: 2em;}
+h2 {font-size: 1.5em;}
+h3 {font-size: 1.2em; margin: 0.5em 0; color: #999;}
+h4 {font-size: 1.1em; margin: 0.5em 0; color: #999;}
+h1 em, h2 em {font-size: 0.9em;}
+p {line-height: 1.4; margin: 0.5em 0;}
+p.message {font-size: 15px;}
+ul, ol {margin: 0.5em 0; padding-left: 3em;}
+em {color: #777;}
+table {border-collapse: collapse;}
+td, th {padding: 0.5em 1em; border: 1px solid #ddd;}
+th {background-color: #eee;}
+td {background-color: #fff;}
+hr {border: 0; border-bottom: 1px solid #999;}
+a {color: #28639e; text-decoration: none;}
+a:hover {color: #000; text-decoration: underline;}
+a:active {color: #f00;}
+
+#wrapper {margin: 0 auto; padding: 0 1em; overflow: hidden; max-width: 700px;}
+
+.section {position: relative;}
+.section.major h2 {font-size: 2em;}
+.group {margin: 1.5em 0; padding: 2em; background-color: #fafafa; zoom: 1;}
+.group > .section {margin-top: 1em;}
+.group > .section:first-of-type {margin-top: 0;}
+
+.icon {position: relative; z-index: 2; float: right; margin: 10px 0 15px 15px;}
+/* Warning icon by by Yannick from http://www.flaticon.com */
+.icon.icon-warning:after {content: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA2CAQAAADdG1eJAAACY0lEQVR4AcXXz2sUdxjA4Wcnu4fN+iOBEoKJbM1ViChaJeDFi0IELREShRY8tAElksXtUVmUZd1Ts5gEYu+19NJehBx6tCd7ESneBVF6bi8t2F56WJZhnfnuzOwz/8BnXnhfZgg3o+O11zpmjMGUl/79/3lpSqBImIpnFgEseqZSbMBdS/otuVtkwDH3DbrvWHEBu6oGVe0WFbDqkjiXrBYRcNgW4m05nH9AxyzizerkHXDWumHWnc0zoGxPZJjInnJ+AZtO+JgTNvMKqGtJoqWeT8C2miRqtvMIWHFZUpetZB1wUE8aPQezDWibk8acdpYBp90W52fnnfeTOLedzipgQvz2/2HVc8+teif+IkxkE7DhlDg/+hv843txTtnIImDeQ/H+AvCneA/Njx7w2AGhDng8asAVV43iqiuJAsLfIMkEwwMeOGpURz0IDTjpjizccTJBQOgeB9yRhAG3nJGVM26lDTiiLUttR9IF9BySpUN6aQKWXZO1a5aTBkzakYcdk8kCWuryUNdKErCoIS8Nix8LKKX4rp8DMJ/iv6I0PGDdOUmtmAZT1iR1zvqwgFmPJFf1QlPTb2qSe2RWn5J+T63J3w+ux0/gojVFWHMxLqBqV1F2VQcDuGdBURbcGww4rinEG2+EaDreH1CypyK9Ly1Y8IX0KvaUoAS+8kR6L3wG+NWS9L72HRFmdIV4B+CtEF0zROiaFmLZp6DucyGmdSn7xA1hJvzuKa4rC3PDNyWbvjU+jchN43QzUjNOk5FXxulV5BfjtB/Z0fDBOHyw4UmELRd07HuvKO/t67hgm/8Ag6dqX/zuTucAAAAASUVORK5CYII="); opacity: 0.2;}
+/* Icon made by Google from www.flaticon.com is licensed under CC BY 3.0 */
+.icon.icon-error {margin-top: 0;}
+.icon.icon-error:after {content: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAAAG9AAABvQG676d5AAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAJNQTFRF////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKxUt3AAAADB0Uk5TAAEGCxUYGzI1QEZNVFdYWmJjaXB/gYqYoqOksrO7vsLDys7P0Njd3uPm7PL19/3+0pdPoQAAAYxJREFUWMO1l2t3gjAMhouIiuANhDlUpk5AxWL+/6+bw21HJw1psz1fe/KeNklzEUKB7YVxkmZlmaVJHHq20KI7XUp4QC6nXap1J9hU0ED1FnQI5takACXFxGqzH+4AZTdEzXtraGXdU9sPjkDgOFDZjyWQkONm70VAJmrwpfUKGiyeFSLQYv70fj17uPi//C81BeDcf4j/EbQ5OHcCazBgdZe/YIT7E0FV/u9v53vF8fY7lhMwE4DR1/8vTAXyW30IwFQAgvp8Yy6wqetfZS5QfdbJGZgLwOx6vOIIXJPJlhwBaQsPSbX3VgHwRAicG0AoYp5ALBKeQCJSnkAqMp5AJkqeQMkXYD+B7UQsjHJfI9EwxsAiRlOZQIh+JgIe+p0Jo4KNFhRad0JK2uml5oSXNHZRZZd1fmNhtzZ2c+W3d/aAwR9x+EMWe8zjD5r8UVdYC+awLaz5hXz/efPq5J+J/vNVK0v/QIpfX700OYTytHLQvc3d4uZbt3XxHOVq83xk/f/q+wfLt976/wGiWzUN96x4SwAAAABJRU5ErkJggg=="); opacity: 0.2;}
+
+@media (max-width: 500px) {
+    .icon {display: none;}
+    .section.has-icon {margin-right: 0;}
+}

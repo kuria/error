@@ -1,15 +1,16 @@
 {
     "name": "kuria/error",
-    "description": "Makes handling and debugging PHP errors suck less.",
-    "keywords": ["error", "exception", "error handler", "exception handler", "fatal", "debug", "debugger", "stack-trace"],
+    "description": "Makes handling and debugging PHP errors suck less",
+    "keywords": ["error", "exception", "error handler", "exception handler", "fatal", "debug", "debugger", "stack", "trace"],
     "license": "MIT",
     "require": {
-        "php": ">=7.1.0",
-        "kuria/event": "^2.0.0",
-        "kuria/debug": "^2.0.0"
+        "php": ">=7.1",
+        "kuria/event": "^2.0",
+        "kuria/debug": "^2.0",
+        "kuria/php-highlighter": "^1.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^6.2"
+        "phpunit/phpunit": "^6.5"
     },
     "autoload": {
         "psr-4": {

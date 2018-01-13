@@ -6,8 +6,8 @@ use Kuria\Debug\Dumper;
 use Kuria\Debug\Error;
 use Kuria\Error\ErrorScreenInterface;
 use Kuria\Error\Exception\OutOfMemoryException;
-use Kuria\Error\Screen\Util\PhpCodePreview;
 use Kuria\Event\Observable;
+use Kuria\PhpHighlighter\PhpHighlighter;
 
 /**
  * @see WebErrorScreenEvents
@@ -15,9 +15,9 @@ use Kuria\Event\Observable;
 class WebErrorScreen extends Observable implements ErrorScreenInterface
 {
     /** @var string */
-    protected $encoding = 'UTF-8';
+    protected $encoding = 'utf-8';
     /** @var string */
-    protected $htmlCharset = 'UTF-8';
+    protected $htmlCharset = 'utf-8';
     /** @var int */
     protected $maxOutputBufferLength = 102400; // 100kB
     /** @var int */
@@ -154,16 +154,17 @@ HTML;
      */
     protected function renderLayout(bool $debug, string $title, string $content): void
     {
-        $js = $this->getLayoutJs($debug);
-        $css = $this->getLayoutCss($debug);
-
         ?>
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="<?= $this->escape($this->htmlCharset) ?>">
-<style type="text/css">
-<?= $css ?>
+<meta charset="<?= $this->escape(strtolower($this->htmlCharset)) ?>">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<?php if ($debug): ?>
+<link rel="icon" type="image/x-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4gELDAY3msRFdQAAAUZJREFUWMPllztSwzAQhj9pmIE2OQO5QLgHDEtNzpG7uMlAlQLzuEe4AJzBaUnlFBEMD1lvYWbYxg9ZK+2/+3lt+O+mUie2h8OVubyTMXbfQtdCl+NDZyy+BCbAxJz/TgqM9MfA27ehE2AntRUwCzSWoUZqK2CiPwVeBh6ZAa9SSwHjeO14ZC21FDDRnwOPQG+Z+37vAniSSinoTOVz2fdfxu7Vh6utwLR4Cj5h57MoLFUqdg4ForDUGdj5LAhLlYpdgAJBWOpM7HzmxfIoALt5xgbm7cHHIJbaE/2qQNNcJaUgArssLFVEt0spQi+WaiD6G+Da4cz1Kh6yW4GFU4GAbpezASuWthRsQio/IQUAzwJnVgwLYReNpa6AXRSWugJ2UViqUOwKFeEPLHVit1MFvrAbMQqEYFfLZhp4GPHXcMy1/4jtATk5XgJfpXWMAAAAAElFTkSuQmCC">
+<?php endif ?>
+<style>
+<?php $this->renderCss($debug) ?>
 </style>
 <title><?= $this->escape($title) ?></title>
 </head>
@@ -180,221 +181,31 @@ HTML;
 
     </div>
 
-<?php if ($js !== ''): ?>
-<script type="text/javascript">
-<?= $js ?>
+<script>
+<?php $this->renderJs($debug) ?>
 </script>
-<?php endif ?>
 </body>
 </html><?php
     }
 
-    protected function getLayoutCss(bool $debug): string
+    protected function renderCss(bool $debug): void
     {
-        ob_start();
-
-        ?>
-* {margin: 0; padding: 0;}
-body {background-color: #56708a; font-family: 'Trebuchet MS', 'Geneva CE', lucida, sans-serif; font-size: 13px;}
-h1, h2, h3, h4 {font-weight: normal;}
-h1 {font-size: 2em;}
-h2 {font-size: 1.5em;}
-h3 {font-size: 1.2em; margin: 0.5em 0; color: #999;}
-h4 {font-size: 1.1em; margin: 0.5em 0; color: #999;}
-h1 em, h2 em {font-size: 0.9em;}
-p {line-height: 1.4; margin: 0.5em 0;}
-p.message {font-size: 15px;}
-ul, ol {margin: 0.5em 0; padding-left: 3em;}
-em {color: #777;}
-table {border-collapse: collapse;}
-td, th {padding: 0.5em 1em; border: 1px solid #ddd;}
-th {background-color: #eee;}
-td {background-color: #fff;}
-hr {border: 0; border-bottom: 1px solid #999;}
-a {color: #28639e; text-decoration: none;}
-a:hover {color: #000; text-decoration: underline;}
-a:active {color: #f00;}
-
-#wrapper {margin: 0 auto; padding: 0 1em; overflow: hidden; max-width: <?= $debug ? '1200' : '700' ?>px;}
-
-div.section {position: relative;}
-div.section.major h2 {font-size: 2em;}
-div.group {margin: 1.5em 0; padding: 2em; background-color: #fafafa; border: 1px solid #aaa; border-radius: 10px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); zoom: 1;}
-div.group > div.section {margin-top: 1em;}
-div.group > div.section:first-of-type {margin-top: 0;}
-
-i.icon {float: right; margin: 10px 0 15px 15px;}
-/* Warning icon by by Yannick from http://www.flaticon.com */
-i.icon.icon-warning:after {content: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA2CAQAAADdG1eJAAACY0lEQVR4AcXXz2sUdxjA4Wcnu4fN+iOBEoKJbM1ViChaJeDFi0IELREShRY8tAElksXtUVmUZd1Ts5gEYu+19NJehBx6tCd7ESneBVF6bi8t2F56WJZhnfnuzOwz/8BnXnhfZgg3o+O11zpmjMGUl/79/3lpSqBImIpnFgEseqZSbMBdS/otuVtkwDH3DbrvWHEBu6oGVe0WFbDqkjiXrBYRcNgW4m05nH9AxyzizerkHXDWumHWnc0zoGxPZJjInnJ+AZtO+JgTNvMKqGtJoqWeT8C2miRqtvMIWHFZUpetZB1wUE8aPQezDWibk8acdpYBp90W52fnnfeTOLedzipgQvz2/2HVc8+teif+IkxkE7DhlDg/+hv843txTtnIImDeQ/H+AvCneA/Njx7w2AGhDng8asAVV43iqiuJAsLfIMkEwwMeOGpURz0IDTjpjizccTJBQOgeB9yRhAG3nJGVM26lDTiiLUttR9IF9BySpUN6aQKWXZO1a5aTBkzakYcdk8kCWuryUNdKErCoIS8Nix8LKKX4rp8DMJ/iv6I0PGDdOUmtmAZT1iR1zvqwgFmPJFf1QlPTb2qSe2RWn5J+T63J3w+ux0/gojVFWHMxLqBqV1F2VQcDuGdBURbcGww4rinEG2+EaDreH1CypyK9Ly1Y8IX0KvaUoAS+8kR6L3wG+NWS9L72HRFmdIV4B+CtEF0zROiaFmLZp6DucyGmdSn7xA1hJvzuKa4rC3PDNyWbvjU+jchN43QzUjNOk5FXxulV5BfjtB/Z0fDBOHyw4UmELRd07HuvKO/t67hgm/8Ag6dqX/zuTucAAAAASUVORK5CYII="); opacity: 0.2;}
-/* Icon made by Google from www.flaticon.com is licensed under CC BY 3.0 */
-i.icon.icon-error {margin-top: 0;}
-i.icon.icon-error:after {content: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAA3NCSVQICAjb4U/gAAAACXBIWXMAAAG9AAABvQG676d5AAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAJNQTFRF////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKxUt3AAAADB0Uk5TAAEGCxUYGzI1QEZNVFdYWmJjaXB/gYqYoqOksrO7vsLDys7P0Njd3uPm7PL19/3+0pdPoQAAAYxJREFUWMO1l2t3gjAMhouIiuANhDlUpk5AxWL+/6+bw21HJw1psz1fe/KeNklzEUKB7YVxkmZlmaVJHHq20KI7XUp4QC6nXap1J9hU0ED1FnQI5takACXFxGqzH+4AZTdEzXtraGXdU9sPjkDgOFDZjyWQkONm70VAJmrwpfUKGiyeFSLQYv70fj17uPi//C81BeDcf4j/EbQ5OHcCazBgdZe/YIT7E0FV/u9v53vF8fY7lhMwE4DR1/8vTAXyW30IwFQAgvp8Yy6wqetfZS5QfdbJGZgLwOx6vOIIXJPJlhwBaQsPSbX3VgHwRAicG0AoYp5ALBKeQCJSnkAqMp5AJkqeQMkXYD+B7UQsjHJfI9EwxsAiRlOZQIh+JgIe+p0Jo4KNFhRad0JK2uml5oSXNHZRZZd1fmNhtzZ2c+W3d/aAwR9x+EMWe8zjD5r8UVdYC+awLaz5hXz/efPq5J+J/vNVK0v/QIpfX700OYTytHLQvc3d4uZbt3XxHOVq83xk/f/q+wfLt976/wGiWzUN96x4SwAAAABJRU5ErkJggg=="); opacity: 0.2;}
-
-@media (max-width: 500px) {
-    i.icon {display: none;}
-    div.section.has-icon {margin-right: 0;}
-}
-<?php if ($debug): ?>
-pre {overflow-y: auto; max-height: 300px; line-height: 1.4; white-space: -moz-pre-wrap; white-space: -pre-wrap; white-space: -o-pre-wrap; white-space: pre-wrap; word-break: break-all; word-wrap: break-word;}
-textarea, iframe {display: block; box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box;}
-textarea {width: 100%; margin: 1em 0; padding: 0.5em; border: 1px solid #aaa;}
-iframe {margin: 1em 0; border: 1px solid #aaa; width: 100%; height: 500px; background-color: #fff;}
-ol.code-preview {overflow-x: auto; padding-left: 60px; border: 1px solid #ddd; line-height: 1.5; font-family: monospace; word-break: break-all; background-color: #eee;}
-ol.code-preview > li {background-color: #fff; padding-left: 10px;}
-ol.code-preview > li.active {background-color: #ebf4ff;}
-
-table.trace {width: 100%;}
-table.trace > tbody > tr.trace > th {width: 1%;}
-table.trace > tbody > tr.trace.expandable > td {cursor: pointer;}
-table.trace > tbody > tr.trace.expandable:hover > td, table.trace > tbody > tr.trace.open > td {background-color: #ebf4ff;}
-table.trace > tbody > tr.trace-extra {display: none;}
-
-table.argument-list {margin-top: 0.5em; width: 100%;}
-table.argument-list:first-child {margin: 0;}
-table.argument-list > tbody > tr > th,
-table.argument-list > tbody > tr > th {width: 1%;}
-
-.toggle-control {cursor: pointer; position: relative;}
-.toggle-control:hover {text-decoration: underline;}
-.toggle-control:after {display: inline-block; margin-left: 5px; font-size: 0.6em; color: #777; vertical-align: middle; text-decoration: none;}
-.toggle-control.closed:after {content: "▼";}
-.toggle-control.open:after {content: "▲";}
-
-div.section > h2.toggle-control:before {content: ""; position: absolute; left: -26px; top: -26px; width: 100%; height: 100%; padding: 26px;}
-div.section > h2.toggle-control.open:before {padding-bottom: 0;}
-
-pre.context {padding: 10px; border: 1px solid #ddd; background-color: #fff;}
-.hidden {display: none;}
-
-@media (max-width: 768px) {
-    table.trace td, table.trace th {display: block; width: auto !important;}
-    table.trace > tbody > tr > th, table.trace > tbody > tr > td {border-top-width: 0;}
-    table.trace > tbody > tr:first-child > th:first-child {border-top-width: 1px;}
-    table.trace > tbody > tr > th:before {content: "Frame ";}
-    table.argument-list th:before {content: "Argument #";}
-    table.argument-list > tbody > tr > th, table.argument-list > tbody > tr > td {border-top-width: 0;}
-    table.argument-list > tbody > tr:first-child > th:first-child {border-top-width: 1px;}
-}
-<?php endif ?>
-<?php
-
-        $css = ob_get_clean();
-
-        $this->emit(WebErrorScreenEvents::LAYOUT_CSS, [
-            'css' => &$css,
-            'debug' => $debug,
-        ]);
-
-        return $css;
-    }
-
-    protected function getLayoutJs(bool $debug): string
-    {
-        ob_start();
+        readfile(__DIR__ . '/Resources/web_error_screen.css');
 
         if ($debug) {
-        ?>
-var Kuria;
-(function (Kuria) {
-    (function (Error) {
-        function blurSelectedTextarea()
-        {
-            delete this.dataset.selected;
+            readfile(__DIR__ . '/Resources/web_error_screen_debug.css');
         }
 
-        Error.WebErrorScreen = {
-            toggle: function (elementId, control) {
-                var element = document.getElementById(elementId);
-                
-                if (element) {
-                    if ('' === element.style.display || 'none' === element.style.display) {
-                        element.style.display = 'block';
-                        control.className = 'toggle-control open';
-                    } else {
-                        element.style.display = 'none';
-                        control.className = 'toggle-control closed';
-                    }
-                }
-            },
+        $this->emit(WebErrorScreenEvents::CSS, $debug);
+    }
 
-            toggleTrace: function (traceId) {
-                var trace = document.getElementById('trace-' + traceId);
-                var traceExtra = document.getElementById('trace-extra-' + traceId);
-
-                if (trace && traceExtra) {
-                    if ('' === traceExtra.style.display || 'none' === traceExtra.style.display) {
-                        // show
-                        trace.className = 'trace expandable open';
-                        try {
-                            traceExtra.style.display = 'table-row';
-                        } catch (e) {
-                            // IE7
-                            traceExtra.style.display = 'block';
-                        }
-                    } else {
-                        // hide
-                        trace.className = 'trace expandable closed';
-                        traceExtra.style.display = 'none';
-                    }
-                }
-            },
-
-            showTextareaAsHtml: function (textareaId, link) {
-                var textarea = document.getElementById(textareaId),
-                    iframe = document.getElementById('html-preview-' + textareaId);
-
-                if (textarea) {
-                    if (iframe) {
-                        iframe.parentNode.removeChild(iframe);
-                        link.textContent = 'Show as HTML';
-                    } else {
-                        iframe = document.createElement('iframe');
-                        iframe.src = 'about:blank';
-                        iframe.id = 'html-preview-' + textareaId;
-
-                        iframe = textarea.parentNode.insertBefore(iframe, textarea.nextSibling);
-
-                        iframe.contentWindow.document.open('text/html');
-                        iframe.contentWindow.document.write(textarea.value);
-                        iframe.contentWindow.document.close();
-
-                        link.textContent = 'Hide';
-                    }
-                }
-            },
-
-            selectTextareaContent: function (textarea) {
-                if (textarea.dataset) {
-                    if (!textarea.dataset.selectInitialized) {
-                        textarea.addEventListener('blur', blurSelectedTextarea);
-
-                        textarea.dataset.selectInitialized = 1;
-                    }
-
-                    if (!textarea.dataset.selected) {
-                        textarea.select();
-                        textarea.dataset.selected = 1;
-                    }
-                } else {
-                    // old browsers
-                    textarea.select();
-                }
-            }
-        };
-
-    })(Kuria.Error || (Kuria.Error = {}));
-})(Kuria || (Kuria = {}));
-<?php
+    protected function renderJs(bool $debug): void
+    {
+        if ($debug) {
+            readfile(__DIR__ . '/Resources/web_error_screen_debug.js');
         }
 
-        $js = ob_get_clean();
-
-        $this->emit(WebErrorScreenEvents::LAYOUT_JS, [
-            'js' => &$js,
-            'debug' => $debug,
-        ]);
-
-        return $js;
+        $this->emit(WebErrorScreenEvents::JS, $debug);
     }
 
     /**
@@ -419,7 +230,7 @@ var Kuria;
 
         // title, message, file
         $html = <<<HTML
-<div class="group exception">
+<div class="group exception text-break">
 <i class="icon icon-warning"></i>
 <div class="section major">
     <{$titleTag}><em>{$number}/{$total}</em> {$title}</{$titleTag}>
@@ -596,7 +407,7 @@ HTML;
             && is_readable($file)
             && filesize($file) < $this->maxCodePreviewFileSize
         ) {
-            return PhpCodePreview::file($file, $line, $lineRange);
+            return PhpHighlighter::file($file, $line, [-$lineRange, $lineRange], 'code-preview');
         }
 
         return null;

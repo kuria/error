@@ -12,29 +12,25 @@ Makes handling and debugging PHP errors suck less.
 Features
 ********
 
-- debug / production mode
+- normal / debug mode
 - converts PHP errors (warnings, notices, etc.) into exceptions
-
-  - respects the global ``error_reporting`` setting
-
+- respects the global ``error_reporting`` setting
 - handles uncaught exceptions and fatal errors (including parse and out-of-memory errors)
-- diplays errors in a readable manner depending on the environment
+- CLI error screen writes errors to stderr
+- web error screen renders errors for web browsers
 
-  - CLI error screen writes errors to stderr
-  - web error screen renders errors for web browsers
+  - | normal mode shows a generic error message:
+    | |Web error screen in normal mode|
 
-    - | non-debug mode shows a generic error message:
-      | |Web error screen in non-debug mode|
+  - | debug mode shows all available info:
+    | |Web error screen in debug mode|
 
-    - | debug mode shows all available info:
-      | |Web error screen in debug mode|
-
-      - file paths and line numbers
-      - highlighted code previews
-      - stack traces
-      - argument lists
-      - output buffer (can be shown as HTML too)
-      - plaintext trace (for copy-paste)
+    - file paths and line numbers
+    - highlighted code previews
+    - stack traces
+    - argument lists
+    - output buffer (can be shown as HTML too)
+    - plaintext trace (for copy-paste)
 
 - event system that can be utilised to:
 
@@ -71,11 +67,6 @@ Usage example
 
 Event system
 ************
-
-- implemented using the `kuria/event <https://github.com/kuria/event>`_ library
-- the error handler fires events as it handles errors
-- both built-in error screen implementations emit events as they render
-
 
 Error handler events
 ====================
@@ -142,7 +133,7 @@ Possible events emitted by the ``WebErrorScreen`` class are listed in ``WebError
 ``WebErrorScreenEvents::RENDER``
 --------------------------------
 
-Emitted when rendering in non-debug.
+Emitted when rendering in normal mode.
 
 Receives an array with the following keys:
 
@@ -167,26 +158,20 @@ Receives an array with the following keys:
 - ``output_buffer``: string\|null
 
 
-``WebErrorScreenEvents::LAYOUT_CSS``
-------------------------------------
+``WebErrorScreenEvents::CSS``
+-----------------------------
 
 Emitted when CSS styles are being output.
 
-Receives an array with the following keys:
-
-- ``&css``: the CSS output
-- ``debug``: boolean
+Receives a single boolean value indicating debug mode.
 
 
-``WebErrorScreenEvents::LAYOUT_JS``
------------------------------------
+``WebErrorScreenEvents::JS``
+----------------------------
 
 Emitted when JavaScript code is being output.
 
-Receives an array with the following keys:
-
-- ``&js``: the JS output
-- ``debug``: boolean
+Receives a single boolean value indicating debug mode.
 
 
 CLI error screen events
@@ -198,7 +183,7 @@ Possible events emitted by the ``CliErrorScreen`` class are listed in ``CliError
 ``CliErrorScreenEvents::RENDER``
 --------------------------------
 
-Emitted when rendering in non-debug mode.
+Emitted when rendering in normal mode.
 
 Receives an array with the following keys:
 
@@ -277,7 +262,7 @@ Altering the error screens
    Examples are for the ``WebErrorScreen``.
 
 
-Changing default labels in non-debug mode:
+Changing default labels in normal mode:
 
 .. code:: php
 
@@ -285,9 +270,9 @@ Changing default labels in non-debug mode:
 
    use Kuria\Error\Screen\WebErrorScreen;
    use Kuria\Error\Screen\WebErrorScreenEvents;
-   
+
    $errorScreen = $errorHandler->getErrorScreen();
-   
+
    if (!$errorHandler->isDebugEnabled() && $errorScreen instanceof WebErrorScreen) {
        $errorScreen->on(WebErrorScreenEvents::RENDER, function ($event) {
            $event['heading'] = 'It is all your fault!';
@@ -305,15 +290,15 @@ Adding a customized section to the debug screen:
 
    use Kuria\Error\Screen\WebErrorScreen;
    use Kuria\Error\Screen\WebErrorScreenEvents;
-   
+
    $errorScreen = $errorHandler->getErrorScreen();
-   
+
    if ($errorHandler->isDebugEnabled() && $errorScreen instanceof WebErrorScreen) {
        // add custom CSS
-       $errorScreen->on(WebErrorScreenEvents::LAYOUT_CSS, function (array $view) {
-           $view['css'] .= '#custom-group {color: #f60000;}';
+       $errorScreen->on(WebErrorScreenEvents::CSS, function () {
+           echo '#custom-group {color: #f60000;}';
        });
-   
+
        // add custom HTML
        $errorScreen->on(WebErrorScreenEvents::RENDER_DEBUG, function (array $view) {
            $view['extras'] .= <<<HTML
@@ -327,5 +312,5 @@ Adding a customized section to the debug screen:
       }
 
 
-.. |Web error screen in non-debug mode| image:: ./doc/web-error-screen.png
+.. |Web error screen in normal mode| image:: ./doc/web-error-screen.png
 .. |Web error screen in debug mode| image:: ./doc/web-error-screen-debug.png
