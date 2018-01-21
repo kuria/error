@@ -6,13 +6,14 @@ use Kuria\Error\Exception\ChainedException;
 use Kuria\Error\Exception\ErrorException;
 use Kuria\Error\Exception\FatalErrorException;
 use Kuria\Error\Exception\OutOfMemoryException;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class ErrorHandlerTest extends TestCase
 {
-    /** @var ErrorScreenInterface|\PHPUnit_Framework_MockObject_MockObject */
+    /** @var ErrorScreenInterface|MockObject */
     private $errorScreenMock;
-    /** @var TestErrorHandler|\PHPUnit_Framework_MockObject_MockObject */
+    /** @var TestErrorHandler|MockObject */
     private $errorHandler;
     /** @var array[] */
     private $scheduledAssertions;
