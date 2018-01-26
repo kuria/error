@@ -2,7 +2,7 @@
 <phpunit bootstrap="./tests/bootstrap.php">
     <testsuites>
         <testsuite name="Error handler">
-            <directory>./tests/</directory>
+            <directory>./tests</directory>
         </testsuite>
     </testsuites>
     <filter>
