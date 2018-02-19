@@ -230,6 +230,8 @@ class ErrorHandler extends EventEmitter
             $this->currentErrorException = null;
 
             throw $error;
+        } else {
+            $this->currentErrorException = null;
         }
 
         // suppressed error

@@ -107,8 +107,13 @@ class ErrorHandlerTest extends \PHPUnit_Framework_TestCase
         $this->errorHandler->onUncaughtException($uncaughtException);
     }
 
+    /**
+     * @requires PHP 7
+     */
     public function testShutdownWithNoErrors()
     {
+        error_clear_last();
+    
         $this->exceptionHandlerMock->expects($this->never())
             ->method('handle');
 

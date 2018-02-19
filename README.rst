@@ -3,8 +3,6 @@ Error handler
 
 Makes handling and debugging PHP errors suck less.
 
-|Web error screen in debug mode|
-
 .. contents::
    :depth: 2
 
@@ -23,14 +21,9 @@ Features
   - CLI error screen writes errors to stderr
   - web error screen renders errors for web browsers
 
-    - | production mode does not disclose any internal information:
-      | |Web error screen in non-debug mode|
+    - production mode does not disclose any internal information
 
-      - simple error message
-
-
-    - | debug mode shows all available info:
-      | |Web error screen in debug mode|
+    - debug mode shows all available info:
 
       - file paths and line numbers
       - highlighted code previews
@@ -329,9 +322,3 @@ Adding a customized section to the debug screen:
    HTML;
           });
    }
-
-
-.. |Web error screen in non-debug mode| image:: http://static.shira.cz/kuria/error/v1.0.x/non-debug-thumb.gif
-   :target: http://static.shira.cz/kuria/error/v1.0.x/non-debug.png
-.. |Web error screen in debug mode| image:: http://static.shira.cz/kuria/error/v1.0.x/debug-thumb.gif
-   :target: http://static.shira.cz/kuria/error/v1.0.x/debug.png

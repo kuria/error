@@ -1,6 +1,12 @@
 Changelog
 #########
 
+1.0.2
+*****
+
+- fixed unintended chaining of suppressed errors in onShutdown()
+
+
 1.0.1
 *****
 
