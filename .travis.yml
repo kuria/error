@@ -1,0 +1,14 @@
+language: php
+
+php:
+    - '7.1'
+    - '7.2'
+    - nightly
+
+env:
+    - COMPOSER_COMMAND="composer install"
+    - COMPOSER_COMMAND="composer update --prefer-lowest"
+
+install: ${COMPOSER_COMMAND}
+
+script: composer all

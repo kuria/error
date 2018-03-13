@@ -49,7 +49,7 @@ class CliErrorScreenTest extends TestCase
 
         $screen = new CliErrorScreen();
 
-        $screen->on(CliErrorScreenEvents::RENDER, function ($event) use ( &$handlerCalled) {
+        $screen->on(CliErrorScreenEvents::RENDER, function ($event) use (&$handlerCalled) {
             $this->assertFalse($handlerCalled);
             $this->assertRenderEvent($event);
 

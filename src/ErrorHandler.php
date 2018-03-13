@@ -18,27 +18,27 @@ use Kuria\Event\Observable;
 class ErrorHandler extends Observable
 {
     /** @var bool */
-    protected $debug = false;
+    private $debug = false;
     /** @var bool */
-    protected $printUnhandledExceptionInDebug = true;
+    private $printUnhandledExceptionInDebug = true;
     /** @var string|null */
-    protected $workingDirectory;
+    private $workingDirectory;
     /** @var ErrorScreenInterface */
-    protected $errorScreen;
+    private $errorScreen;
     /** @var bool */
-    protected $cleanBuffers = true;
+    private $cleanBuffers = true;
     /** @var ErrorException|null */
-    protected $currentErrorException;
+    private $currentErrorException;
     /** @var array|null */
-    protected $lastError;
+    private $lastError;
     /** @var bool */
-    protected $registered = false;
+    private $registered = false;
     /** @var string|null */
-    protected $previousDisplayErrorsSetting;
+    private $previousDisplayErrorsSetting;
     /** @var bool */
-    protected $shutdownHandlerRegistered = false;
+    private $shutdownHandlerRegistered = false;
     /** @var string|null */
-    protected $reservedMemory;
+    private $reservedMemory;
 
     function __construct(?ErrorScreenInterface $errorScreen = null, $reservedMemoryBytes = 10240)
     {

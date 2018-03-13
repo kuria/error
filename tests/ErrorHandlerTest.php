@@ -13,7 +13,7 @@ class ErrorHandlerTest extends TestCase
 {
     /** @var ErrorScreenInterface|MockObject */
     private $errorScreenMock;
-    /** @var TestErrorHandler|MockObject */
+    /** @var TestErrorHandler */
     private $errorHandler;
     /** @var array[] */
     private $scheduledAssertions;
@@ -224,9 +224,9 @@ class ErrorHandlerTest extends TestCase
 
         // helper: assert listener call counts
         $assertCallCounts = function ($errorListenerCalls, $suppressedErrorListenerCalls, $exceptionListenerCalls) use (&$callCounters) {
-            $this->assertSame($errorListenerCalls, $callCounters['error'], 'Expected error listener to be called n times');
-            $this->assertSame($suppressedErrorListenerCalls, $callCounters['suppressed_error'], 'Expected error listener to be called n times with a suppressed error');
-            $this->assertSame($exceptionListenerCalls, $callCounters['exception'], 'Expected exception listener to be called n times');
+            $this->assertSame($errorListenerCalls, $callCounters['error']);
+            $this->assertSame($suppressedErrorListenerCalls, $callCounters['suppressed_error']);
+            $this->assertSame($exceptionListenerCalls, $callCounters['exception']);
         };
 
         // error listener
@@ -327,7 +327,10 @@ class ErrorHandlerTest extends TestCase
                 $this->logicalAnd(
                     $this->isInstanceOf(ChainedException::class),
                     $this->callback(function (\Throwable $exception) use ($uncaughtException, $exceptionEventException) {
-                        $this->assertSame('Additional exception was thrown from an [exception] event listener. See previous exceptions.', $exception->getMessage());
+                        $this->assertSame(
+                            'Additional exception was thrown from an [exception] event listener. See previous exceptions.',
+                            $exception->getMessage()
+                        );
                         $this->assertSame($exceptionEventException, $exception->getPrevious());
                         $this->assertSame($uncaughtException, $exceptionEventException->getPrevious());
 
@@ -350,18 +353,45 @@ class ErrorHandlerTest extends TestCase
 
         $failureListenerCalled = false;
 
-        $this->errorHandler->on(ErrorHandlerEvents::FAILURE, function (\Throwable $exception, bool $debug) use (
+        $this->errorHandler->on(ErrorHandlerEvents::FAILURE, function (
+            \Throwable $exception,
+            bool $debug
+        ) use (
             $uncaughtException,
             $errorScreenException,
             &$failureListenerCalled
         ) {
             $failureListenerCalled = true;
 
-            $this->scheduleAssertion('assertFalse', $debug, 'Expected debug to be FALSE in failure listener');
-            $this->scheduleAssertion('assertInstanceOf', ChainedException::class, $exception, 'Expected an instance of RuntimeException in failure listener');
-            $this->scheduleAssertion('assertRegExp', '{Additional exception was thrown while trying to invoke .*\. See previous exceptions\.}', $exception->getMessage(), 'Expected an exception with correct message in failure listener');
-            $this->scheduleAssertion('assertSame', $errorScreenException, $exception->getPrevious(), 'Expected the error screen exception to be the previous exception in exception listener');
-            $this->scheduleAssertion('assertSame', $uncaughtException, $exception->getPrevious()->getPrevious(), 'Expected the original exception to be the last exception in the chain in exception listener');
+            $this->scheduleAssertion(
+                'assertFalse',
+                $debug,
+                'Expected debug to be FALSE in failure listener'
+            );
+            $this->scheduleAssertion(
+                'assertInstanceOf',
+                ChainedException::class,
+                $exception,
+                'Expected an instance of RuntimeException in failure listener'
+            );
+            $this->scheduleAssertion(
+                'assertRegExp',
+                '{Additional exception was thrown while trying to invoke .*\. See previous exceptions\.}',
+                $exception->getMessage(),
+                'Expected an exception with correct message in failure listener'
+            );
+            $this->scheduleAssertion(
+                'assertSame',
+                $errorScreenException,
+                $exception->getPrevious(),
+                'Expected the error screen exception to be the previous exception in exception listener'
+            );
+            $this->scheduleAssertion(
+                'assertSame',
+                $uncaughtException,
+                $exception->getPrevious()->getPrevious(),
+                'Expected the original exception to be the last exception in the chain in exception listener'
+            );
         });
 
         $this->errorScreenMock

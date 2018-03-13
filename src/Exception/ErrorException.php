@@ -8,7 +8,7 @@ namespace Kuria\Error\Exception;
 class ErrorException extends \ErrorException implements ExceptionInterface
 {
     /** @var bool */
-    protected $suppressed;
+    private $suppressed;
 
     function __construct(
         string $message = '',

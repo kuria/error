@@ -12,7 +12,7 @@ use Kuria\Event\Observable;
 class CliErrorScreen extends Observable implements ErrorScreenInterface
 {
     /** @var resource|null */
-    protected $outputStream;
+    private $outputStream;
 
     function render(\Throwable $exception, bool $debug, ?string $outputBuffer = null): void
     {
@@ -51,7 +51,7 @@ class CliErrorScreen extends Observable implements ErrorScreenInterface
      *
      * Returns a [title, output] tuple.
      */
-    protected function doRender(\Throwable $exception, ?string $outputBuffer = null): array
+    private function doRender(\Throwable $exception, ?string $outputBuffer = null): array
     {
         return ['An error has occured', 'Enable debug mode for more details.'];
     }
@@ -61,7 +61,7 @@ class CliErrorScreen extends Observable implements ErrorScreenInterface
      *
      * Returns a [title, output] tuple.
      */
-    protected function doRenderDebug(\Throwable $exception, ?string $outputBuffer = null): array
+    private function doRenderDebug(\Throwable $exception, ?string $outputBuffer = null): array
     {
         return ['An error has occured', Error::renderException($exception, true, true)];
     }

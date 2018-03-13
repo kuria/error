@@ -15,17 +15,17 @@ use Kuria\PhpHighlighter\PhpHighlighter;
 class WebErrorScreen extends Observable implements ErrorScreenInterface
 {
     /** @var string */
-    protected $encoding = 'utf-8';
+    private $encoding = 'utf-8';
     /** @var string */
-    protected $htmlCharset = 'utf-8';
+    private $htmlCharset = 'utf-8';
     /** @var int */
-    protected $maxOutputBufferLength = 102400; // 100kB
+    private $maxOutputBufferLength = 102400; // 100kB
     /** @var int */
-    protected $maxCodePreviewFileSize = 524288; // 512kB
+    private $maxCodePreviewFileSize = 524288; // 512kB
     /** @var int */
-    protected $uidSeq = 0;
+    private $uidSeq = 0;
     /** @var bool set in handle() based on error type */
-    protected $codePreviewEnabled;
+    private $codePreviewEnabled;
 
     /**
      * Set encoding used to escape and dump values
@@ -68,7 +68,7 @@ class WebErrorScreen extends Observable implements ErrorScreenInterface
         }
 
         $this->codePreviewEnabled = !$exception instanceof OutOfMemoryException;
-        
+
         [$title, $html] = $debug
             ? $this->doRenderDebug($exception, $outputBuffer)
             : $this->doRender($exception, $outputBuffer);
@@ -160,7 +160,7 @@ HTML;
 <head>
 <meta charset="<?= $this->escape(strtolower($this->htmlCharset)) ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<?php if ($debug): ?>
+<?php if ($debug) : ?>
 <link rel="icon" type="image/x-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4gELDAY3msRFdQAAAUZJREFUWMPllztSwzAQhj9pmIE2OQO5QLgHDEtNzpG7uMlAlQLzuEe4AJzBaUnlFBEMD1lvYWbYxg9ZK+2/+3lt+O+mUie2h8OVubyTMXbfQtdCl+NDZyy+BCbAxJz/TgqM9MfA27ehE2AntRUwCzSWoUZqK2CiPwVeBh6ZAa9SSwHjeO14ZC21FDDRnwOPQG+Z+37vAniSSinoTOVz2fdfxu7Vh6utwLR4Cj5h57MoLFUqdg4ForDUGdj5LAhLlYpdgAJBWOpM7HzmxfIoALt5xgbm7cHHIJbaE/2qQNNcJaUgArssLFVEt0spQi+WaiD6G+Da4cz1Kh6yW4GFU4GAbpezASuWthRsQio/IQUAzwJnVgwLYReNpa6AXRSWugJ2UViqUOwKFeEPLHVit1MFvrAbMQqEYFfLZhp4GPHXcMy1/4jtATk5XgJfpXWMAAAAAElFTkSuQmCC">
 <?php endif ?>
 <style>
@@ -293,7 +293,7 @@ HTML;
             // row attributes
             $rowAttrs = '';
             $rowClasses = 'trace';
-            
+
             if ($renderExtras) {
                 $rowAttrs .= " id=\"trace-{$frameUid}\" onclick=\"Kuria.Error.WebErrorScreen.toggleTrace({$frameUid})\"";
                 $rowClasses .= ' expandable closed';
@@ -307,7 +307,7 @@ HTML;
     <td>{$file}</td>
 </tr>\n
 HTML;
-    
+
             // extras
             if ($renderExtras) {
                 $html .= <<<HTML
@@ -368,10 +368,12 @@ HTML;
         }
 
         // render
+        $textareaId = null;
+        $wrapperId = sprintf('output-buffer-wrapper-%d', $this->generateUid());
+
         if ($show) {
             $textareaId = sprintf('output-buffer-%d', $this->generateUid());
         }
-        $wrapperId = sprintf('output-buffer-wrapper-%d', $this->generateUid());
 
         return "<div class=\"group\">
     <div class=\"section\">

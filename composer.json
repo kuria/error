@@ -6,15 +6,27 @@
     "require": {
         "php": ">=7.1",
         "kuria/event": "^2.0",
-        "kuria/debug": "^2.0",
-        "kuria/php-highlighter": "^1.0"
+        "kuria/debug": "^2.0 || ^3.0",
+        "kuria/php-highlighter": "^2.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^6.5"
+        "kuria/dev-meta": "^0.1.0"
     },
     "autoload": {
         "psr-4": {
             "Kuria\\Error\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kuria\\Error\\": "tests"
+        }
+    },
+    "extra": {
+        "package-scripts-vars": {
+            "kuria/dev-meta": {
+                "phpcs.standard": "./phpcs.xml"
+            }
         }
     }
 }
