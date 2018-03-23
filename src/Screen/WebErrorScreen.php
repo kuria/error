@@ -133,7 +133,7 @@ HTML;
 
         $output = '';
         $chain = Error::getExceptionChain($exception);
-        $totalExceptions = sizeof($chain);
+        $totalExceptions = count($chain);
 
         for ($i = 0; $i < $totalExceptions; ++$i) {
             $output .= $this->renderException($chain[$i], $i, $totalExceptions);
@@ -257,7 +257,7 @@ HTML;
 
     protected function renderTrace(array $trace): string
     {
-        $traceCounter = sizeof($trace) - 1;
+        $traceCounter = count($trace) - 1;
         $html = <<<HTML
 <div class="section">
     <h3>Stack trace</h3>
@@ -267,7 +267,7 @@ HTML;
 
         foreach ($trace as $frame) {
             $frameUid = $this->generateUid();
-            $frameArgNum = isset($frame['args']) ? sizeof($frame['args']) : 0;
+            $frameArgNum = isset($frame['args']) ? count($frame['args']) : 0;
             $renderExtras = true;
 
             // call
@@ -340,7 +340,7 @@ HTML;
     protected function renderArguments(array $args): string
     {
         $html = "<h4>Arguments</h4>\n<table class=\"argument-list\"><tbody>\n";
-        for ($i = 0, $argCount = sizeof($args); $i < $argCount; ++$i) {
+        for ($i = 0, $argCount = count($args); $i < $argCount; ++$i) {
             $html .= "<tr><th>{$i}</th><td><pre>" . $this->escape(Dumper::dump($args[$i], 2, 64, $this->encoding)) . "</pre></td></tr>\n";
         }
         $html .= "</tbody></table>\n";
