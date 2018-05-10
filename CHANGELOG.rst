@@ -1,6 +1,12 @@
 Changelog
 #########
 
+4.1.0
+*****
+
+- updated kuria/debug dependency to v4
+
+
 4.0.0
 *****
 

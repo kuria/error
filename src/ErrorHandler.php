@@ -3,6 +3,7 @@
 namespace Kuria\Error;
 
 use Kuria\Debug\Error;
+use Kuria\Debug\Exception;
 use Kuria\Debug\Output;
 use Kuria\Error\Exception\ChainedException;
 use Kuria\Error\Exception\ErrorException;
@@ -157,7 +158,7 @@ class ErrorHandler extends Observable
                 throw new ChainedException(
                     'Additional exception was thrown from an [error] event listener. See previous exceptions.',
                     0,
-                    Error::joinExceptionChains($this->currentErrorException, $e)
+                    Exception::joinChains($this->currentErrorException, $e)
                 );
             }
 
@@ -186,7 +187,7 @@ class ErrorHandler extends Observable
                 $exception = new ChainedException(
                     'Additional exception was thrown from an [exception] event listener. See previous exceptions.',
                     0,
-                    Error::joinExceptionChains($exception, $e)
+                    Exception::joinChains($exception, $e)
                 );
             }
 
@@ -197,7 +198,7 @@ class ErrorHandler extends Observable
             $exception = new ChainedException(
                 sprintf('Additional exception was thrown while trying to invoke %s. See previous exceptions.', get_class($this->errorScreen)),
                 0,
-                Error::joinExceptionChains($exception, $e)
+                Exception::joinChains($exception, $e)
             );
 
             $this->emit(ErrorHandlerEvents::FAILURE, $exception, $this->debug);
@@ -205,7 +206,7 @@ class ErrorHandler extends Observable
 
         // unhandled exception
         if ($this->debug && $this->printUnhandledExceptionInDebug) {
-            echo Error::renderException($exception, true, true);
+            echo Exception::render($exception, true, true);
         }
     }
 

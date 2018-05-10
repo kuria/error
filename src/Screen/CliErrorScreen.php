@@ -2,7 +2,7 @@
 
 namespace Kuria\Error\Screen;
 
-use Kuria\Debug\Error;
+use Kuria\Debug\Exception;
 use Kuria\Error\ErrorScreenInterface;
 use Kuria\Event\Observable;
 
@@ -63,7 +63,7 @@ class CliErrorScreen extends Observable implements ErrorScreenInterface
      */
     private function doRenderDebug(\Throwable $exception, ?string $outputBuffer = null): array
     {
-        return ['An error has occured', Error::renderException($exception, true, true)];
+        return ['An error has occured', Exception::render($exception, true, true)];
     }
 
     /**

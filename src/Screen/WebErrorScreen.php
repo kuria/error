@@ -4,6 +4,7 @@ namespace Kuria\Error\Screen;
 
 use Kuria\Debug\Dumper;
 use Kuria\Debug\Error;
+use Kuria\Debug\Exception;
 use Kuria\Error\ErrorScreenInterface;
 use Kuria\Error\Exception\OutOfMemoryException;
 use Kuria\Event\Observable;
@@ -121,7 +122,7 @@ HTML;
      */
     protected function doRenderDebug(\Throwable $exception, ?string $outputBuffer = null): array
     {
-        $title = Error::getExceptionName($exception);
+        $title = Exception::getName($exception);
         $extras = '';
 
         $this->emit(WebErrorScreenEvents::RENDER_DEBUG, [
@@ -132,7 +133,7 @@ HTML;
         ]);
 
         $output = '';
-        $chain = Error::getExceptionChain($exception);
+        $chain = Exception::getChain($exception);
         $totalExceptions = count($chain);
 
         for ($i = 0; $i < $totalExceptions; ++$i) {
@@ -222,7 +223,7 @@ HTML;
         $isMain = $index === 0;
         $number = $index + 1;
 
-        $title = Error::getExceptionName($exception);
+        $title = Exception::getName($exception);
         $titleTag = $isMain ? 'h1' : 'h2';
 
         $message = '<p class="message">' . nl2br($this->escape($exception->getMessage()), false) . '</p>';
@@ -387,7 +388,7 @@ HTML;
 
     protected function renderPlaintextTrace(\Throwable $exception): string
     {
-        $trace = Error::renderException($exception, true, true);
+        $trace = Exception::render($exception, true, true);
 
         return <<<HTML
 <div class="group">

@@ -60,7 +60,7 @@ class WebErrorScreenTest extends TestCase
 
         $output = $this->doRender($screen, $this->createTestException(), true);
 
-        $this->assertRegExp('{<h1>.*User error.*</h1>}m', $output);
+        $this->assertRegExp('{<h1>.*E_USER_ERROR.*</h1>}m', $output);
         $this->assertContains('Test exception', $output);
         $this->assertContains(basename(__FILE__), $output);
         $this->assertRegExp('{<ol[^>]+class="code-preview">}m', $output);
@@ -133,11 +133,11 @@ class WebErrorScreenTest extends TestCase
 
         $this->assertTrue($handlerCalled);
         $this->assertContains('<title>Oh no</title>', $output);
-        $this->assertRegExp('{<h1>.*User error.*</h1>}m', $output);
+        $this->assertRegExp('{<h1>.*E_USER_ERROR.*</h1>}m', $output);
         $this->assertContains('Test exception', $output);
         $this->assertContains(basename(__FILE__), $output);
         $this->assertRegExp('{<ol[^>]+class="code-preview">}m', $output);
-                $this->assertContains('<table class="trace">', $output);
+        $this->assertContains('<table class="trace">', $output);
         $this->assertContains('custom content lorem ipsum', $output);
         $this->assertRegExp('{<h2>.*Exception.*</h2>}m', $output);
         $this->assertContains('Test nested exception', $output);
