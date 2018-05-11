@@ -10,7 +10,7 @@
         "kuria/php-highlighter": "^2.0"
     },
     "require-dev": {
-        "kuria/dev-meta": "^0.2.0"
+        "kuria/dev-meta": "^0.3.0"
     },
     "autoload": {
         "psr-4": {
