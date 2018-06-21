@@ -7,7 +7,7 @@ php:
 
 env:
     - COMPOSER_COMMAND="composer install"
-    - COMPOSER_COMMAND="composer update --prefer-lowest"
+    - COMPOSER_COMMAND="composer update --prefer-lowest --prefer-stable"
 
 install: ${COMPOSER_COMMAND}
 
