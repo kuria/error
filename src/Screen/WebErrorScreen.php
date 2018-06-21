@@ -17,14 +17,19 @@ class WebErrorScreen extends Observable implements ErrorScreenInterface
 {
     /** @var string */
     private $encoding = 'utf-8';
+
     /** @var string */
     private $htmlCharset = 'utf-8';
+
     /** @var int */
     private $maxOutputBufferLength = 102400; // 100kB
+
     /** @var int */
     private $maxCodePreviewFileSize = 524288; // 512kB
+
     /** @var int */
     private $uidSeq = 0;
+
     /** @var bool set in handle() based on error type */
     private $codePreviewEnabled;
 

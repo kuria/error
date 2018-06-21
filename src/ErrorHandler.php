@@ -20,24 +20,34 @@ class ErrorHandler extends Observable
 {
     /** @var bool */
     private $debug = false;
+
     /** @var bool */
     private $printUnhandledExceptionInDebug = true;
+
     /** @var string|null */
     private $workingDirectory;
+
     /** @var ErrorScreenInterface */
     private $errorScreen;
+
     /** @var bool */
     private $cleanBuffers = true;
+
     /** @var ErrorException|null */
     private $currentErrorException;
+
     /** @var array|null */
     private $lastError;
+
     /** @var bool */
     private $registered = false;
+
     /** @var string|null */
     private $previousDisplayErrorsSetting;
+
     /** @var bool */
     private $shutdownHandlerRegistered = false;
+
     /** @var string|null */
     private $reservedMemory;
 

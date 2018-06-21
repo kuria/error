@@ -7,4 +7,8 @@
         <exclude-pattern>/src/Screen/WebErrorScreen.php</exclude-pattern>
     </rule>
 
+    <rule ref="Generic.WhiteSpace.ScopeIndent.Incorrect">
+        <exclude-pattern>/src/Screen/WebErrorScreen.php</exclude-pattern>
+    </rule>
+
 </ruleset>

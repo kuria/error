@@ -13,8 +13,10 @@ class ErrorHandlerTest extends TestCase
 {
     /** @var ErrorScreenInterface|MockObject */
     private $errorScreenMock;
+
     /** @var TestErrorHandler */
     private $errorHandler;
+
     /** @var array[] */
     private $scheduledAssertions;
 
@@ -438,6 +440,7 @@ class TestErrorHandler extends ErrorHandler
 {
     /** @var bool */
     private $alwaysActive = true;
+
     /** @var bool */
     private $overrideErrorCodeInOomCheck = false;
 
