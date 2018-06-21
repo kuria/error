@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 class WebErrorScreenTest extends TestCase
 {
-    function testRender()
+    function testShouldRender()
     {
         $screen = new WebErrorScreen();
 
@@ -22,7 +22,7 @@ class WebErrorScreenTest extends TestCase
         $this->assertNotContains('<table class="trace">', $output);
     }
 
-    function testRenderEvent()
+    function testShouldEmitRenderEvent()
     {
         $handlerCalled = false;
 
@@ -54,7 +54,7 @@ class WebErrorScreenTest extends TestCase
         $this->assertNotContains('<table class="trace">', $output);
     }
 
-    function testDebugRender()
+    function testShouldRenderInDebugMode()
     {
         $screen = new WebErrorScreen();
 
@@ -71,7 +71,7 @@ class WebErrorScreenTest extends TestCase
     }
 
 
-    function testDebugRenderLongOutputBuffer()
+    function testShouldNotRenderBigOutputBufferInDebugMode()
     {
         $screen = new WebErrorScreen();
 
@@ -82,7 +82,7 @@ class WebErrorScreenTest extends TestCase
         $this->assertContains('The output buffer is too big', $output);
     }
 
-    function testDebugRenderBinaryOutputBuffer()
+    function testShouldNotRenderBinaryOutputBufferInDebugMode()
     {
         $screen = new WebErrorScreen();
 
@@ -93,7 +93,7 @@ class WebErrorScreenTest extends TestCase
         $this->assertContains('The output buffer contains unprintable', $output);
     }
 
-    function testDebugRenderEmptyOutputBuffer()
+    function testShouldNotRenderEmptyOutputBufferInDebugMode()
     {
         $screen = new WebErrorScreen();
 
@@ -102,7 +102,7 @@ class WebErrorScreenTest extends TestCase
         $this->assertNotRegExp('{<h2.*Output buffer.*</h2>}m', $output);
     }
 
-    function testCodePreviewSizeLimit()
+    function testShouldNotRenderCodePreviewForFilesThatExceedConfiguredLimit()
     {
         $screen = new WebErrorScreen();
 
@@ -113,7 +113,7 @@ class WebErrorScreenTest extends TestCase
         $this->assertNotRegExp('{<ol[^>]+class="code-preview">}m', $output);
     }
 
-    function testDebugRenderEvent()
+    function testShouldEmitRenderEventInDebugMode()
     {
         $handlerCalled = false;
 
@@ -147,7 +147,7 @@ class WebErrorScreenTest extends TestCase
     /**
      * @dataProvider provideDebugStates
      */
-    function testLayoutEvents(bool $debugEnabled)
+    function testShouldEmitLayoutEvents(bool $debugEnabled)
     {
         $cssHandlerCalled = false;
         $jsHandlerCalled = false;
@@ -185,7 +185,7 @@ class WebErrorScreenTest extends TestCase
         return [[false], [true]];
     }
 
-    function testCustomEncoding()
+    function testShouldSupportCustomEncoding()
     {
         $encodedMessage = mb_convert_encoding('Желтый Верховая', 'KOI8-R', 'UTF-8');
 

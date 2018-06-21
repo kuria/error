@@ -6,7 +6,7 @@ use PHPUnit\Framework\TestCase;
 
 class ErrorExceptionTest extends TestCase
 {
-    function testMinimialConstructorCall()
+    function testShouldCreateExceptionWithDefaultProperties()
     {
         $e = new ErrorException();
 
@@ -19,7 +19,7 @@ class ErrorExceptionTest extends TestCase
         $this->assertNull($e->getPrevious());
     }
 
-    function testFullConstructorCall()
+    function testShouldCreateExceptionWithCustomProperties()
     {
         $previous = new \Exception('Previous exception');
 
@@ -41,7 +41,7 @@ class ErrorExceptionTest extends TestCase
         $this->assertSame($previous, $e->getPrevious());
     }
 
-    function testSuppress()
+    function testShouldSuppress()
     {
         $e = new ErrorException('Test message', E_USER_WARNING, false);
 
@@ -52,7 +52,7 @@ class ErrorExceptionTest extends TestCase
         $this->assertTrue($e->isSuppressed());
     }
 
-    function testForce()
+    function testShouldForce()
     {
         $e = new ErrorException('Test message', E_USER_WARNING, true);
 

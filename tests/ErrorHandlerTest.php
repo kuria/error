@@ -30,7 +30,7 @@ class ErrorHandlerTest extends TestCase
         $this->scheduledAssertions = [];
     }
 
-    function testConfiguration()
+    function testShouldConfigure()
     {
         $this->assertFalse($this->errorHandler->isDebugEnabled());
 
@@ -47,7 +47,7 @@ class ErrorHandlerTest extends TestCase
         $this->assertSame($errorScreenMock, $this->errorHandler->getErrorScreen());
     }
 
-    function testOnError()
+    function testShouldHandleError()
     {
         $this->expectException(ErrorException::class);
         $this->expectExceptionMessage('Something went wrong');
@@ -55,14 +55,14 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
     }
 
-    function testOnErrorSuppressed()
+    function testShouldHandleSuppressedError()
     {
         @$this->errorHandler->onError(E_USER_WARNING, 'Something went wrong', __FILE__, __LINE__);
 
         $this->addToAssertionCount(1); // no exception was thrown => ok
     }
 
-    function testOnUncaughtException()
+    function testShouldHandleUncaughtException()
     {
         $exception = new \Exception();
 
@@ -73,7 +73,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onUncaughtException($exception);
     }
 
-    function testDoesNotPrintUnhandledExceptionsWhenNotInDebugMode()
+    function testShouldNotPrintUnhandledExceptionsWhenNotInDebugMode()
     {
         $this->errorHandler->setPrintUnhandledExceptionInDebug(true);
 
@@ -89,7 +89,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onUncaughtException($uncaughtException);
     }
 
-    function testPrintsUnhandlesExceptionsWhenInDebugMode()
+    function testShouldPrintsUnhandledExceptionsWhenInDebugMode()
     {
         $this->errorHandler->setDebug(true);
         $this->errorHandler->setPrintUnhandledExceptionInDebug(true);
@@ -110,7 +110,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onUncaughtException($uncaughtException);
     }
 
-    function testShutdownWithNoErrors()
+    function testShouldHandleShutdownWithNoErrors()
     {
         $this->errorScreenMock->expects($this->never())
             ->method('render');
@@ -118,7 +118,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onShutdown();
     }
 
-    function testShutdownWithSuppressedError()
+    function testShouldHandleShutdownWithSuppressedError()
     {
         $this->errorScreenMock->expects($this->never())
             ->method('render');
@@ -129,7 +129,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onShutdown();
     }
 
-    function testShutdownWithHandledError()
+    function testShouldHandleShutdownWithHandledError()
     {
         $this->errorScreenMock->expects($this->never())
             ->method('render');
@@ -144,7 +144,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onShutdown();
     }
 
-    function testShutdownWithUnhandledError()
+    function testShouldHandleShutdownWithUnhandledError()
     {
         $this->errorScreenMock->expects($this->once())
             ->method('render')
@@ -158,7 +158,7 @@ class ErrorHandlerTest extends TestCase
     /**
      * @dataProvider provideOutOfMemoryErrorMessages
      */
-    function testShutdownWithOutOfMemoryError(string $errorMessage)
+    function testShouldHandleShutdownWithOutOfMemoryError(string $errorMessage)
     {
         $this->errorScreenMock->expects($this->once())
             ->method('render')
@@ -181,7 +181,7 @@ class ErrorHandlerTest extends TestCase
         ];
     }
 
-    function testShutdownWithErrorWhenActive()
+    function testShouldHandleShutdownWithErrorWhenActive()
     {
         $this->errorHandler->setAlwaysActive(false);
 
@@ -200,7 +200,7 @@ class ErrorHandlerTest extends TestCase
         }
     }
 
-    function testOnShutdownWithErrorWhenNotActive()
+    function testShouldHandleShutdownWithErrorWhenNotActive()
     {
         $this->errorHandler->setAlwaysActive(false);
 
@@ -212,7 +212,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onShutdown();
     }
 
-    function testEvents()
+    function testShouldEmitEvents()
     {
         $this->errorHandler->setDebug(true);
 
@@ -269,7 +269,7 @@ class ErrorHandlerTest extends TestCase
         $assertCallCounts(1, 1, 1);
     }
 
-    function testEventSuppressesErrorException()
+    function testEventShouldBeAbleToSuppressErrorException()
     {
         $this->errorHandler->on(ErrorHandlerEvents::ERROR, function (ErrorException $exception) {
             $exception->suppress();
@@ -280,7 +280,7 @@ class ErrorHandlerTest extends TestCase
         $this->addToAssertionCount(1); // no exception was thrown => ok
     }
 
-    function testEventForcesErrorException()
+    function testEventShouldBeAbleToForceErrorException()
     {
         $this->errorHandler->on(ErrorHandlerEvents::ERROR, function (ErrorException $exception) {
             $exception->force();
@@ -293,7 +293,7 @@ class ErrorHandlerTest extends TestCase
         @$this->errorHandler->onError(E_USER_ERROR, 'Test suppressed');
     }
 
-    function testExceptionChainingWithErrorEvent()
+    function testShouldChainExceptionsFromErrorEventHandlers()
     {
         $errorEventException = new \Exception('Event exception');
 
@@ -315,7 +315,7 @@ class ErrorHandlerTest extends TestCase
         $this->assertSame('Test runtime', $errorEventException->getPrevious()->getMessage());
     }
 
-    function testExceptionChainingWithExceptionEvent()
+    function testShouldChainExceptionsFromExceptionEventHandlers()
     {
         $uncaughtException = new \Exception('Test uncaught');
         $exceptionEventException = new \Exception('Event exception');
@@ -346,7 +346,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->onUncaughtException($uncaughtException);
     }
 
-    function testFailureEvent()
+    function testShouldEmitFailureEvent()
     {
         $uncaughtException = new \Exception('Test uncaught');
         $errorScreenException = new \Exception('Error screen exception');

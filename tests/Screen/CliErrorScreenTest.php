@@ -6,7 +6,7 @@ use PHPUnit\Framework\TestCase;
 
 class CliErrorScreenTest extends TestCase
 {
-    function testRender()
+    function testShouldRender()
     {
         $screen = new CliErrorScreen();
 
@@ -17,7 +17,7 @@ class CliErrorScreenTest extends TestCase
         $this->assertNotContains('Test exception', $output);
     }
 
-    function testRenderEvent()
+    function testShouldEmitRenderEvent()
     {
         $handlerCalled = false;
 
@@ -43,7 +43,7 @@ class CliErrorScreenTest extends TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    function testRenderEventCustomOutput()
+    function testEventShouldAddCustomOutput()
     {
         $handlerCalled = false;
 
@@ -69,7 +69,7 @@ class CliErrorScreenTest extends TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    function testDebugRender()
+    function testShouldRenderInDebugMode()
     {
         $screen = new CliErrorScreen();
 
@@ -79,7 +79,7 @@ class CliErrorScreenTest extends TestCase
         $this->assertContains('Test exception', $output);
     }
 
-    function testDebugRenderEvent()
+    function testShouldEmitRenderEventInDebugMode()
     {
         $handlerCalled = false;
 
@@ -104,7 +104,7 @@ class CliErrorScreenTest extends TestCase
         $this->assertContains('Dolor sit amet', $output);
     }
 
-    function testDebugRenderEventCustomOutput()
+    function testEventShouldAddCustomOutputInDebugMode()
     {
         $handlerCalled = false;
 
