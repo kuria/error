@@ -3,7 +3,6 @@
 namespace Kuria\Error\Screen;
 
 use Kuria\Debug\Dumper;
-use Kuria\Debug\Error;
 use Kuria\Debug\Exception;
 use Kuria\Error\ErrorScreenInterface;
 use Kuria\Error\Exception\OutOfMemoryException;
@@ -294,6 +293,11 @@ HTML;
                 }
             } else {
                 $file = '-';
+            }
+
+            // do not render extras if there is nothing to be displayed
+            if ($renderExtras && empty($frame['args']) && !isset($frame['file'], $frame['line'])) {
+                $renderExtras = false;
             }
 
             // row attributes

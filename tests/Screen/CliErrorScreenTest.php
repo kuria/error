@@ -2,19 +2,20 @@
 
 namespace Kuria\Error\Screen;
 
-use PHPUnit\Framework\TestCase;
+use Kuria\DevMeta\Test;
 
-class CliErrorScreenTest extends TestCase
+class CliErrorScreenTest extends Test
 {
     function testShouldRender()
     {
         $screen = new CliErrorScreen();
 
-        $output = $this->doRender($screen, new \Exception('Test exception'), false);
+        $output = $this->doRender($screen, $this->createTestException(), false);
 
         $this->assertContains('An error has occured', $output);
-        $this->assertContains('Enable debug mode for more details', $output);
-        $this->assertNotContains('Test exception', $output);
+        $this->assertContains('Test exception', $output);
+        $this->assertNotContains('Test previous exception', $output);
+        $this->assertNotContains('{main}', $output);
     }
 
     function testShouldEmitRenderEvent()
@@ -27,23 +28,23 @@ class CliErrorScreenTest extends TestCase
             $this->assertFalse($handlerCalled);
             $this->assertRenderEvent($event);
 
-            $event['title'] = 'Lorem ipsum';
+            $event['title'] .= ' lorem ipsum';
             $event['output'] .= "\n\nDolor sit amet";
 
             $handlerCalled = true;
         });
 
-        $output = $this->doRender($screen, new \Exception('Test exception'), false);
+        $output = $this->doRender($screen, $this->createTestException(), false);
 
         $this->assertTrue($handlerCalled);
-        $this->assertNotContains('An error has occured', $output);
-        $this->assertNotContains('Test exception', $output);
-        $this->assertContains('Enable debug mode for more details', $output);
-        $this->assertContains('Lorem ipsum', $output);
+        $this->assertContains('An error has occured lorem ipsum', $output);
+        $this->assertContains('Test exception', $output);
         $this->assertContains('Dolor sit amet', $output);
+        $this->assertNotContains('Test previous exception', $output);
+        $this->assertNotContains('{main}', $output);
     }
 
-    function testEventShouldAddCustomOutput()
+    function testShouldReplaceDefaultOutputViaRenderEvent()
     {
         $handlerCalled = false;
 
@@ -59,21 +60,22 @@ class CliErrorScreenTest extends TestCase
             $handlerCalled = true;
         });
 
-        $output = $this->doRender($screen, new \Exception('Test exception'), false);
+        $output = $this->doRender($screen, $this->createTestException(), false);
 
         $this->assertTrue($handlerCalled);
-        $this->assertNotContains('An error has occured', $output);
-        $this->assertNotContains('Test exception', $output);
-        $this->assertNotContains('Enable debug mode for more details', $output);
         $this->assertContains('Lorem ipsum', $output);
         $this->assertContains('Dolor sit amet', $output);
+        $this->assertNotContains('An error has occured', $output);
+        $this->assertNotContains('Test exception', $output);
+        $this->assertNotContains('Test previous exception', $output);
+        $this->assertNotContains('{main}', $output);
     }
 
     function testShouldRenderInDebugMode()
     {
         $screen = new CliErrorScreen();
 
-        $output = $this->doRender($screen, new \Exception('Test exception'), true);
+        $output = $this->doRender($screen, $this->createTestException(), true);
 
         $this->assertContains('An error has occured', $output);
         $this->assertContains('Test exception', $output);
@@ -89,22 +91,23 @@ class CliErrorScreenTest extends TestCase
             $this->assertFalse($handlerCalled);
             $this->assertRenderEvent($event);
 
-            $event['title'] = 'Lorem ipsum';
+            $event['title'] .= ' lorem ipsum';
             $event['output'] .= "\n\nDolor sit amet";
 
             $handlerCalled = true;
         });
 
-        $output = $this->doRender($screen, new \Exception('Test exception'), true);
+        $output = $this->doRender($screen, $this->createTestException(), true);
 
         $this->assertTrue($handlerCalled);
-        $this->assertNotContains('An error has occured', $output);
-        $this->assertContains('Lorem ipsum', $output);
+        $this->assertContains('An error has occured lorem ipsum', $output);
         $this->assertContains('Test exception', $output);
+        $this->assertContains('Test previous exception', $output);
         $this->assertContains('Dolor sit amet', $output);
+        $this->assertContains('{main}', $output);
     }
 
-    function testEventShouldAddCustomOutputInDebugMode()
+    function testShouldReplaceDefaultOutputViaRenderEventInDebugMode()
     {
         $handlerCalled = false;
 
@@ -120,16 +123,18 @@ class CliErrorScreenTest extends TestCase
             $handlerCalled = true;
         });
 
-        $output = $this->doRender($screen, new \Exception('Test exception'), true);
+        $output = $this->doRender($screen, $this->createTestException(), true);
 
         $this->assertTrue($handlerCalled);
-        $this->assertNotContains('An error has occured', $output);
-        $this->assertNotContains('Test exception', $output);
         $this->assertContains('Lorem ipsum', $output);
         $this->assertContains('Dolor sit amet', $output);
+        $this->assertNotContains('An error has occured', $output);
+        $this->assertNotContains('Test exception', $output);
+        $this->assertNotContains('Test previous exception', $output);
+        $this->assertNotContains('{main}', $output);
     }
 
-    function assertRenderEvent($event): void
+    private function assertRenderEvent($event): void
     {
         $this->assertInternalType('array', $event);
         $this->assertArrayHasKey('title', $event);
@@ -157,5 +162,10 @@ class CliErrorScreenTest extends TestCase
         fclose($outputStream);
 
         return $output;
+    }
+
+    private function createTestException(): \Throwable
+    {
+        return new \Exception('Test exception', 0, new \Exception('Test previous exception'));
     }
 }

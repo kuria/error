@@ -1,6 +1,13 @@
 Changelog
 #########
 
+4.2.0
+*****
+
+- cli error screen now displays the exception message even in non-debug mode
+- web error screen trace frames are no longer expandable if there is nothing to be displayed
+
+
 4.1.0
 *****
 

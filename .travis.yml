@@ -26,6 +26,11 @@ matrix:
               - INSTALL_COMMAND="composer install"
               - MAIN_COMMAND="composer tests"
 
+    allow_failures:
+        - php: nightly
+
+    fast_finish: true
+
 install: ${INSTALL_COMMAND}
 
 script: ${MAIN_COMMAND}

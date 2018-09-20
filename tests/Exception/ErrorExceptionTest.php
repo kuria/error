@@ -2,9 +2,9 @@
 
 namespace Kuria\Error\Exception;
 
-use PHPUnit\Framework\TestCase;
+use Kuria\DevMeta\Test;
 
-class ErrorExceptionTest extends TestCase
+class ErrorExceptionTest extends Test
 {
     function testShouldCreateExceptionWithDefaultProperties()
     {

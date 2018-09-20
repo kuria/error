@@ -19,8 +19,8 @@ class CliErrorScreen extends Observable implements ErrorScreenInterface
         $outputStream = $this->getOutputStream();
 
         [$title, $output] = $debug
-            ? $this->doRenderDebug($exception, $outputBuffer)
-            : $this->doRender($exception, $outputBuffer);
+            ? $this->doRenderDebug($exception)
+            : $this->doRender($exception);
 
         $this->emit($debug ? CliErrorScreenEvents::RENDER_DEBUG : CliErrorScreenEvents::RENDER, [
             'title' => &$title,
@@ -51,9 +51,9 @@ class CliErrorScreen extends Observable implements ErrorScreenInterface
      *
      * Returns a [title, output] tuple.
      */
-    private function doRender(\Throwable $exception, ?string $outputBuffer = null): array
+    private function doRender(\Throwable $exception): array
     {
-        return ['An error has occured', 'Enable debug mode for more details.'];
+        return ['An error has occured', Exception::render($exception, false)];
     }
 
     /**
@@ -61,7 +61,7 @@ class CliErrorScreen extends Observable implements ErrorScreenInterface
      *
      * Returns a [title, output] tuple.
      */
-    private function doRenderDebug(\Throwable $exception, ?string $outputBuffer = null): array
+    private function doRenderDebug(\Throwable $exception): array
     {
         return ['An error has occured', Exception::render($exception, true, true)];
     }
@@ -71,19 +71,13 @@ class CliErrorScreen extends Observable implements ErrorScreenInterface
      */
     function getOutputStream()
     {
-        if ($this->outputStream !== null) {
-            $stream = $this->outputStream;
-        } elseif (defined('STDERR')) {
-            $stream = STDERR;
-        } else {
-            $stream = fopen('php://output', 'a');
-        }
-
-        return $stream;
+        return $this->outputStream
+            ?? (defined('STDERR') ? STDERR : null)
+            ?? fopen('php://output', 'a');
     }
 
     /**
-     * @param resource $outputStream
+     * @param resource|null $outputStream
      */
     function setOutputStream($outputStream): void
     {

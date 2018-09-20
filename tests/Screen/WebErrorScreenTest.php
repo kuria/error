@@ -2,10 +2,10 @@
 
 namespace Kuria\Error\Screen;
 
+use Kuria\DevMeta\Test;
 use Kuria\Error\Exception\ErrorException;
-use PHPUnit\Framework\TestCase;
 
-class WebErrorScreenTest extends TestCase
+class WebErrorScreenTest extends Test
 {
     function testShouldRender()
     {

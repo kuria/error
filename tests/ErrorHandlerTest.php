@@ -2,14 +2,14 @@
 
 namespace Kuria\Error;
 
+use Kuria\DevMeta\Test;
 use Kuria\Error\Exception\ChainedException;
 use Kuria\Error\Exception\ErrorException;
 use Kuria\Error\Exception\FatalErrorException;
 use Kuria\Error\Exception\OutOfMemoryException;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
 
-class ErrorHandlerTest extends TestCase
+class ErrorHandlerTest extends Test
 {
     /** @var ErrorScreenInterface|MockObject */
     private $errorScreenMock;

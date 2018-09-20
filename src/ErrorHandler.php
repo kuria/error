@@ -2,7 +2,6 @@
 
 namespace Kuria\Error;
 
-use Kuria\Debug\Error;
 use Kuria\Debug\Exception;
 use Kuria\Debug\Output;
 use Kuria\Error\Exception\ChainedException;

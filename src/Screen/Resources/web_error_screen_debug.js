@@ -71,7 +71,6 @@ var Kuria;
                 if (textarea.dataset) {
                     if (!textarea.dataset.selectInitialized) {
                         textarea.addEventListener('blur', blurSelectedTextarea);
-
                         textarea.dataset.selectInitialized = 1;
                     }
 
