@@ -180,7 +180,7 @@ class WebErrorScreenTest extends Test
         $this->assertRegExp('{<script>.*/\* my custom js \*/.*</script>}s', $output);
     }
 
-    function provideDebugStates(): array
+    function provideDebugStates()
     {
         return [[false], [true]];
     }

@@ -172,7 +172,7 @@ class ErrorHandlerTest extends Test
         $this->errorHandler->onShutdown();
     }
 
-    function provideOutOfMemoryErrorMessages(): array
+    function provideOutOfMemoryErrorMessages()
     {
         return [
             ['Allowed memory size of 123456 bytes exhausted at 123:456 (tried to allocate 123456 bytes)'],
