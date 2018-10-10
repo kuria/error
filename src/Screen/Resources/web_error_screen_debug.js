@@ -11,7 +11,7 @@ var Kuria;
                 var element = document.getElementById(elementId);
 
                 if (element) {
-                    if ('' === element.style.display || 'none' === element.style.display) {
+                    if (element.style.display === '' || element.style.display === 'none') {
                         element.style.display = 'block';
                         control.className = 'toggle-control open';
                     } else {
@@ -26,7 +26,7 @@ var Kuria;
                 var traceExtra = document.getElementById('trace-extra-' + traceId);
 
                 if (trace && traceExtra) {
-                    if ('' === traceExtra.style.display || 'none' === traceExtra.style.display) {
+                    if (traceExtra.style.display === '' || traceExtra.style.display === 'none') {
                         // show
                         trace.className = 'trace expandable open';
                         try {

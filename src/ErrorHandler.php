@@ -293,7 +293,7 @@ class ErrorHandler extends Observable
 
     protected function isCli(): bool
     {
-        return 'cli' === PHP_SAPI;
+        return PHP_SAPI === 'cli';
     }
 
     protected function isOutOfMemoryError(array $error): bool
