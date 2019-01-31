@@ -8,14 +8,20 @@ matrix:
               - INSTALL_COMMAND="composer install"
               - MAIN_COMMAND="composer tests"
 
-        - name: 7.2 (all)
+        - name: 7.2 (tests)
           php: '7.2'
+          env:
+              - INSTALL_COMMAND="composer install"
+              - MAIN_COMMAND="composer tests"
+
+        - name: 7.3 (all)
+          php: '7.3'
           env:
               - INSTALL_COMMAND="composer install"
               - MAIN_COMMAND="composer all"
 
-        - name: 7.2 (tests, lowest deps)
-          php: '7.2'
+        - name: 7.3 (tests, lowest deps)
+          php: '7.3'
           env:
               - INSTALL_COMMAND="composer update --prefer-lowest --prefer-stable"
               - MAIN_COMMAND="composer tests"
