@@ -73,6 +73,7 @@ class ErrorHandlerTest extends Test
             ->with($this->identicalTo($exception));
 
         $this->errorHandler->onUncaughtException($exception);
+        $this->assertSame(255, $this->errorHandler->getStopExecutionCode());
     }
 
     function testShouldNotPrintUnhandledExceptionsWhenNotInDebugMode()
@@ -89,6 +90,7 @@ class ErrorHandlerTest extends Test
         $this->expectOutputString('');
 
         $this->errorHandler->onUncaughtException($uncaughtException);
+        $this->assertSame(255, $this->errorHandler->getStopExecutionCode());
     }
 
     function testShouldPrintsUnhandledExceptionsWhenInDebugMode()
@@ -110,6 +112,7 @@ class ErrorHandlerTest extends Test
         });
 
         $this->errorHandler->onUncaughtException($uncaughtException);
+        $this->assertSame(255, $this->errorHandler->getStopExecutionCode());
     }
 
     function testShouldHandleShutdownWithNoErrors()
@@ -267,6 +270,7 @@ class ErrorHandlerTest extends Test
         $assertCallCounts(1, 1, 0);
 
         $this->errorHandler->onUncaughtException(new \Exception('Test uncaught'));
+        $this->assertSame(255, $this->errorHandler->getStopExecutionCode());
 
         $assertCallCounts(1, 1, 1);
     }
@@ -346,6 +350,7 @@ class ErrorHandlerTest extends Test
         });
 
         $this->errorHandler->onUncaughtException($uncaughtException);
+        $this->assertSame(255, $this->errorHandler->getStopExecutionCode());
     }
 
     function testShouldEmitFailureEvent()
@@ -404,6 +409,7 @@ class ErrorHandlerTest extends Test
         $this->errorHandler->onUncaughtException($uncaughtException);
 
         $this->assertTrue($failureListenerCalled, 'Expected failure handler to be called');
+        $this->assertSame(255, $this->errorHandler->getStopExecutionCode());
     }
 
     /**
@@ -444,6 +450,9 @@ class TestErrorHandler extends ErrorHandler
     /** @var bool */
     private $overrideErrorCodeInOomCheck = false;
 
+    /** @var int|null */
+    private $stopExecutionCode;
+
     function setAlwaysActive(bool $alwaysActive): void
     {
         $this->alwaysActive = $alwaysActive;
@@ -452,6 +461,11 @@ class TestErrorHandler extends ErrorHandler
     function setOverrideErrorCodeInOomCheck(bool $overrideErrorCodeInOomCheck): void
     {
         $this->overrideErrorCodeInOomCheck = $overrideErrorCodeInOomCheck;
+    }
+
+    public function getStopExecutionCode(): ?int
+    {
+        return $this->stopExecutionCode;
     }
 
     protected function isActive(): bool
@@ -466,5 +480,10 @@ class TestErrorHandler extends ErrorHandler
         }
 
         return parent::isOutOfMemoryError($error);
+    }
+
+    protected function stopExecution(int $code): void
+    {
+        $this->stopExecutionCode = $code;
     }
 }

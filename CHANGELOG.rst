@@ -1,6 +1,12 @@
 Changelog
 #########
 
+4.2.1
+*****
+
+- set exit code to 255 in exception handler to be consistent with default PHP behavior
+
+
 4.2.0
 *****
 

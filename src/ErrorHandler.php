@@ -201,6 +201,7 @@ class ErrorHandler extends Observable
             }
 
             $this->invokeErrorScreen($exception);
+            $this->stopExecution(255);
 
             return;
         } catch (\Throwable $e) {
@@ -217,6 +218,8 @@ class ErrorHandler extends Observable
         if ($this->debug && $this->printUnhandledExceptionInDebug) {
             echo Exception::render($exception, true, true);
         }
+
+        $this->stopExecution(255);
     }
 
     /**
@@ -318,5 +321,10 @@ class ErrorHandler extends Observable
         restore_error_handler();
 
         return is_array($currentErrorHandler) && $currentErrorHandler[0] === $this;
+    }
+
+    protected function stopExecution(int $code): void
+    {
+        exit($code);
     }
 }
