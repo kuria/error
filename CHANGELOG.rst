@@ -1,6 +1,12 @@
 Changelog
 #########
 
+4.2.2
+*****
+
+- allow a newer version of kuria/php-highlighter
+
+
 4.2.1
 *****
 

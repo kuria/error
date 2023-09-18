@@ -7,7 +7,7 @@
         "php": ">=7.1",
         "kuria/event": "^2.0",
         "kuria/debug": "^4.0",
-        "kuria/php-highlighter": "^2.0"
+        "kuria/php-highlighter": "^2.0 || ^3.0"
     },
     "require-dev": {
         "ext-mbstring": "*",
