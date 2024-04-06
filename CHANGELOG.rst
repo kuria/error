@@ -1,6 +1,12 @@
 Changelog
 #########
 
+4.2.3
+*****
+
+- fix white-space rendering in code preview for PHP 8.3+
+
+
 4.2.2
 *****
 

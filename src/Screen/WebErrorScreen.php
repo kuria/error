@@ -199,6 +199,10 @@ HTML;
 
         if ($debug) {
             readfile(__DIR__ . '/Resources/web_error_screen_debug.css');
+
+            if (PHP_VERSION_ID >= 80300) {
+                echo ".code-preview > li {white-space: pre-wrap; word-break: break-word;}\n";
+            }
         }
 
         $this->emit(WebErrorScreenEvents::CSS, $debug);
