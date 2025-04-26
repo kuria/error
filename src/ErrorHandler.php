@@ -17,6 +17,8 @@ use Kuria\Event\Observable;
  */
 class ErrorHandler extends Observable
 {
+    protected const FATAL_SHUTDOWN_ERRORS = [E_ERROR => true, E_CORE_ERROR => true, E_COMPILE_ERROR => true];
+
     /** @var bool */
     private $debug = false;
 
@@ -235,6 +237,9 @@ class ErrorHandler extends Observable
         if (
             $this->isActive()
             && ($error = error_get_last()) !== null
+            // opcache can cause some errors to bypass the registered error handler (https://github.com/php/php-src/issues/17422)
+            // check the error type here to not present these cases as "fatal" errors
+            && isset(static::FATAL_SHUTDOWN_ERRORS[$error['type']])
             && $error !== $this->lastError
         ) {
             $this->lastError = null;
@@ -316,9 +321,12 @@ class ErrorHandler extends Observable
             return true;
         }
 
-        // ugly, but there is no get_error_handler()
-        $currentErrorHandler = set_error_handler(function () {});
-        restore_error_handler();
+        if (PHP_VERSION_ID >= 80500) {
+            $currentErrorHandler = get_error_handler();
+        } else {
+            $currentErrorHandler = set_error_handler(function () {});
+            restore_error_handler();
+        }
 
         return is_array($currentErrorHandler) && $currentErrorHandler[0] === $this;
     }

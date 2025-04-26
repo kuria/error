@@ -1,6 +1,12 @@
 Changelog
 #########
 
+4.2.4
+*****
+
+- workaround for some errors bypassing the error handler when opcache is used
+
+
 4.2.3
 *****
 

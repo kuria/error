@@ -3,9 +3,6 @@ Error handler
 
 Makes handling and debugging PHP errors suck less.
 
-.. image:: https://travis-ci.com/kuria/error.svg?branch=master
-   :target: https://travis-ci.com/kuria/error
-
 |Web error screen in debug mode|
 
 .. contents::

@@ -444,6 +444,8 @@ class ErrorHandlerTest extends Test
  */
 class TestErrorHandler extends ErrorHandler
 {
+    protected const FATAL_SHUTDOWN_ERRORS = [E_ERROR => true, E_CORE_ERROR => true, E_COMPILE_ERROR => true, E_USER_WARNING => true];
+
     /** @var bool */
     private $alwaysActive = true;
 
